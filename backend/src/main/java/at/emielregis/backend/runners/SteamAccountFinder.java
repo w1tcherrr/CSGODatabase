@@ -257,6 +257,7 @@ public class SteamAccountFinder {
 
     public void lockAndCircleKey() {
         LOGGER.info("Locking for 2 minutes due to 429 error.");
+        currentApiCalls = 0;
         locked_until = LocalDateTime.now().plusMinutes(2);
         urlProvider.circleKey();
     }
