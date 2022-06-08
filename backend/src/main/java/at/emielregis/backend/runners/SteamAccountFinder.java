@@ -22,6 +22,7 @@ import org.springframework.web.client.RestTemplate;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.invoke.MethodHandles;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -39,6 +40,7 @@ public class SteamAccountFinder {
     private static final long MAX_ACCOUNTS = 5000;
     private static final long MAX_POSSIBLE_ACCOUNTS = 500_000;
     private static boolean findNewAccounts = true;
+    private static LocalDateTime locked_until = LocalDateTime.MIN;
 
     public SteamAccountFinder(
         SteamAccountService steamAccountService,
@@ -87,6 +89,7 @@ public class SteamAccountFinder {
         }
 
         for (String id64 : nextAccounts) {
+            waitForLock();
             mapUser(id64);
         }
 
@@ -99,6 +102,11 @@ public class SteamAccountFinder {
             LOGGER.info("Request to map user with id: {} rejected, user already mapped", id64);
             return;
         }
+
+        if (locked_until.isAfter(LocalDateTime.now())) {
+            return;
+        }
+
         LOGGER.info("Request to map user with id: {} accepted", id64);
 
         SteamAccount.SteamAccountBuilder accountBuilder =
@@ -110,7 +118,15 @@ public class SteamAccountFinder {
 
         mapGames(accountBuilder, id64);
 
+        if (locked_until.isAfter(LocalDateTime.now())) {
+            return;
+        }
+
         if (!mapInventory(accountBuilder, id64)) {
+            return;
+        }
+
+        if (locked_until.isAfter(LocalDateTime.now())) {
             return;
         }
 
@@ -128,6 +144,10 @@ public class SteamAccountFinder {
         try {
             httpGameResponse = restTemplate.getForObject(urlProvider.getGamesRequest(id64), HttpGameResponse.class);
         } catch (RestClientResponseException e) {
+            if (e.getRawStatusCode() == 429) {
+                lockAndCircleKey();
+                return;
+            }
             accountBuilder.withPrivateGames(true);
             accountBuilder.withHasCsgo(false);
         }
@@ -147,6 +167,8 @@ public class SteamAccountFinder {
         } catch (RestClientResponseException e) {
             if (e.getRawStatusCode() == 403) {
                 accountBuilder.withCSGOInventory(null);
+            } else if (e.getRawStatusCode() == 429) {
+                lockAndCircleKey();
             } else {
                 return false;
             }
@@ -160,8 +182,14 @@ public class SteamAccountFinder {
             Map<String, String> typeMap = httpInventoryResponse.getTypes();
 
             if (httpInventoryResponse.hasMoreItems()) {
-                HttpInventoryResponse httpInventoryResponse1 = restTemplate.getForObject(urlProvider.getInventoryRequestUriWithStart(id64, httpInventoryResponse.getLastAssetId()), HttpInventoryResponse.class);
-
+                HttpInventoryResponse httpInventoryResponse1 = null;
+                try {
+                    httpInventoryResponse1 = restTemplate.getForObject(urlProvider.getInventoryRequestUriWithStart(id64, httpInventoryResponse.getLastAssetId()), HttpInventoryResponse.class);
+                } catch (RestClientResponseException e) {
+                    if (e.getRawStatusCode() == 429) {
+                        lockAndCircleKey();
+                    }
+                }
                 httpInventoryResponse1.getInventory().forEach((key, value) -> {
                     if (inventoryMap.containsKey(key)) {
                         inventoryMap.put(key, inventoryMap.get(key) + value);
@@ -199,6 +227,8 @@ public class SteamAccountFinder {
         } catch (RestClientResponseException e) {
             if (e.getRawStatusCode() == 401) {
                 accountBuilder.withPrivateFriends(true);
+            } else if (e.getRawStatusCode() == 429) {
+                lockAndCircleKey();
             }
             accountBuilder.withFriendIds(null);
         }
@@ -208,6 +238,27 @@ public class SteamAccountFinder {
         } else {
             accountBuilder.withFriendIds(null);
         }
+    }
+
+    public void lockAndCircleKey() {
+        LOGGER.info("Locking for 2 minutes.");
+        locked_until = LocalDateTime.now().plusMinutes(2);
+        urlProvider.circleKey();
+    }
+
+    public void waitForLock() {
+        while (isLocked()) {
+            try {
+                LOGGER.info("Still locked due to 429.");
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public boolean isLocked() {
+        return locked_until.isAfter(LocalDateTime.now());
     }
 
     private boolean alreadyMapped(String id64) {
