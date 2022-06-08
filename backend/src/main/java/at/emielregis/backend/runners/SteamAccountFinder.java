@@ -37,10 +37,12 @@ public class SteamAccountFinder {
     private final RestTemplate restTemplate;
     private final ItemManager itemManager;
 
-    private static final long MAX_ACCOUNTS = 5000;
-    private static final long MAX_POSSIBLE_ACCOUNTS = 500_000;
-    private static boolean findNewAccounts = true;
-    private static LocalDateTime locked_until = LocalDateTime.MIN;
+    private static final long MAX_ACCOUNTS = 10_000;
+    private static final long MAX_POSSIBLE_ACCOUNTS = 250_000;
+
+    private boolean findNewAccounts = true;
+    private LocalDateTime locked_until = LocalDateTime.MIN;
+    private Integer currentApiCalls = 0;
 
     public SteamAccountFinder(
         SteamAccountService steamAccountService,
@@ -72,8 +74,11 @@ public class SteamAccountFinder {
 
         long alreadyMappedAccounts = steamAccountService.count();
         List<String> nextAccounts = steamAccountService.findNextIds(Math.min(MAX_ACCOUNTS - alreadyMappedAccounts, 25));
+        long currentMaxPossibleAccounts = steamAccountService.getMaxPossibleAccounts();
 
         LOGGER.info("Already mapped {} players", alreadyMappedAccounts);
+        LOGGER.info("Currently at {} Api calls", currentApiCalls);
+        LOGGER.info("Current max possible accounts: {}", currentMaxPossibleAccounts);
         LOGGER.info("Mapping account with ids: {} next", nextAccounts);
 
         if (nextAccounts.size() == 0) {
@@ -81,11 +86,19 @@ public class SteamAccountFinder {
             return;
         }
 
-        long currentMaxPossibleAccounts = steamAccountService.getMaxPossibleAccounts();
-        LOGGER.info("Current max possible accounts: {}", currentMaxPossibleAccounts);
-
         if (currentMaxPossibleAccounts > MAX_POSSIBLE_ACCOUNTS) {
+            LOGGER.info("Not searching for friends anymore, already have enough IDs stored.");
             findNewAccounts = false;
+        }
+
+        if (currentApiCalls >= 100) {
+            LOGGER.info("100 api calls exceeded - sleeping for two minutes and resetting counter to avoid 429.");
+            try {
+                Thread.sleep(120_000);
+                currentApiCalls = 0;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
 
         for (String id64 : nextAccounts) {
@@ -103,10 +116,6 @@ public class SteamAccountFinder {
             return;
         }
 
-        if (locked_until.isAfter(LocalDateTime.now())) {
-            return;
-        }
-
         LOGGER.info("Request to map user with id: {} accepted", id64);
 
         SteamAccount.SteamAccountBuilder accountBuilder =
@@ -118,15 +127,7 @@ public class SteamAccountFinder {
 
         mapGames(accountBuilder, id64);
 
-        if (locked_until.isAfter(LocalDateTime.now())) {
-            return;
-        }
-
         if (!mapInventory(accountBuilder, id64)) {
-            return;
-        }
-
-        if (locked_until.isAfter(LocalDateTime.now())) {
             return;
         }
 
@@ -142,6 +143,7 @@ public class SteamAccountFinder {
 
         HttpGameResponse httpGameResponse = null;
         try {
+            currentApiCalls++;
             httpGameResponse = restTemplate.getForObject(urlProvider.getGamesRequest(id64), HttpGameResponse.class);
         } catch (RestClientResponseException e) {
             if (e.getRawStatusCode() == 429) {
@@ -163,6 +165,7 @@ public class SteamAccountFinder {
 
         HttpInventoryResponse httpInventoryResponse = null;
         try {
+            currentApiCalls++;
             httpInventoryResponse = restTemplate.getForObject(urlProvider.getFirstInventoryRequestUri(id64), HttpInventoryResponse.class);
         } catch (RestClientResponseException e) {
             if (e.getRawStatusCode() == 403) {
@@ -184,6 +187,7 @@ public class SteamAccountFinder {
             if (httpInventoryResponse.hasMoreItems()) {
                 HttpInventoryResponse httpInventoryResponse1 = null;
                 try {
+                    currentApiCalls++;
                     httpInventoryResponse1 = restTemplate.getForObject(urlProvider.getInventoryRequestUriWithStart(id64, httpInventoryResponse.getLastAssetId()), HttpInventoryResponse.class);
                 } catch (RestClientResponseException e) {
                     if (e.getRawStatusCode() == 429) {
@@ -212,6 +216,8 @@ public class SteamAccountFinder {
                 builder.withItems(itemManager.convert(inventoryMap, typeMap));
                 CSGOInventory inventory = csgoInventoryService.save(builder.build());
                 accountBuilder.withCSGOInventory(inventory);
+            } else {
+                LOGGER.info("Not converting inventory, it is empty");
             }
         }
 
@@ -223,6 +229,7 @@ public class SteamAccountFinder {
 
         HttpFriendsResponse httpFriendsResponse = null;
         try {
+            currentApiCalls++;
             httpFriendsResponse = restTemplate.getForObject(urlProvider.getFriendsRequestUri(id64), HttpFriendsResponse.class);
         } catch (RestClientResponseException e) {
             if (e.getRawStatusCode() == 401) {
@@ -241,7 +248,7 @@ public class SteamAccountFinder {
     }
 
     public void lockAndCircleKey() {
-        LOGGER.info("Locking for 2 minutes.");
+        LOGGER.info("Locking for 2 minutes due to 429 error.");
         locked_until = LocalDateTime.now().plusMinutes(2);
         urlProvider.circleKey();
     }
