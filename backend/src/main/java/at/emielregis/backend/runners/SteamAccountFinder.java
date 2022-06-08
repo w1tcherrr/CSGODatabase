@@ -92,13 +92,7 @@ public class SteamAccountFinder {
         }
 
         if (currentApiCalls >= 100) {
-            LOGGER.info("100 api calls exceeded - sleeping for two minutes and resetting counter to avoid 429.");
-            try {
-                Thread.sleep(120_000);
-                currentApiCalls = 0;
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            lockForApiCalls();
         }
 
         for (String id64 : nextAccounts) {
@@ -244,6 +238,20 @@ public class SteamAccountFinder {
             accountBuilder.withFriendIds(httpFriendsResponse.getFriendId64s());
         } else {
             accountBuilder.withFriendIds(null);
+        }
+    }
+
+    private void lockForApiCalls() {
+        LOGGER.info("100 api calls exceeded - sleeping for two minutes and resetting counter to avoid 429.");
+        int counter = 0;
+        try {
+            while(counter++ < 12) {
+                Thread.sleep(10_000);
+                LOGGER.info("Still waiting.");
+            }
+            currentApiCalls = 0;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
