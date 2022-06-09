@@ -11,23 +11,28 @@ public interface SteamAccountRepository extends JpaRepository<SteamAccount, Long
     @Query(
         value = "Select count(a) > 0 from SteamAccount a where a.id64 = :id"
     )
-    boolean containsBy64Id(@Param(value = "id") String id);
+    boolean containsById64(@Param(value = "id") String id);
 
     @Query(
         value = "Select distinct id from " +
             "SteamAccount a join a.friendIds id " +
-            "WHERE a.hasCsgo = TRUE AND a.privateFriends = FALSE " +
-            "AND id NOT IN (SELECT distinct b.id64 from SteamAccount b)"
+            "WHERE id NOT IN (SELECT distinct b.id64 from SteamAccount b) " +
+            "AND a.csgoInventory IS NOT NULL"
     )
     List<String> findNextIds();
 
     @Query(
         value = "Select count(distinct id) from SteamAccount a left join a.friendIds id"
     )
-    long getMaxPossibleAccounts();
+    long getAmountOfUniqueAccountIDs();
 
     @Query(
         value = "Select a from SteamAccount a where a.csgoInventory IS NOT NULL"
     )
     List<SteamAccount> findAllWithInventory();
+
+    @Query(
+        value = "Select count(a) = 0 from SteamAccount a left join a.friendIds id where id = :id OR a.id = :id"
+    )
+    boolean idNotStoredYet(@Param(value = "id") String id);
 }

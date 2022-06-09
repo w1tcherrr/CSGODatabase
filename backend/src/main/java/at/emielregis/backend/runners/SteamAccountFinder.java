@@ -3,7 +3,6 @@ package at.emielregis.backend.runners;
 import at.emielregis.backend.data.entities.CSGOInventory;
 import at.emielregis.backend.data.entities.SteamAccount;
 import at.emielregis.backend.data.responses.HttpFriendsResponse;
-import at.emielregis.backend.data.responses.HttpGameResponse;
 import at.emielregis.backend.data.responses.HttpInventoryResponse;
 import at.emielregis.backend.service.CSGOInventoryService;
 import at.emielregis.backend.service.ItemManager;
@@ -37,7 +36,7 @@ public class SteamAccountFinder {
     private final RestTemplate restTemplate;
     private final ItemManager itemManager;
 
-    private static final long MAX_ACCOUNTS = 10_000;
+    private static final long MAX_ACCOUNTS = 100_000;
     private static final long MAX_POSSIBLE_ACCOUNTS = 250_000;
 
     private boolean findNewAccounts = true;
@@ -86,16 +85,15 @@ public class SteamAccountFinder {
             return;
         }
 
-        if (currentMaxPossibleAccounts > MAX_POSSIBLE_ACCOUNTS) {
+        if (findNewAccounts && currentMaxPossibleAccounts > MAX_POSSIBLE_ACCOUNTS) {
             LOGGER.info("Not searching for friends anymore, already have enough IDs stored.");
             findNewAccounts = false;
         }
 
-        if (currentApiCalls >= 100) {
-            lockForApiCalls();
-        }
-
         for (String id64 : nextAccounts) {
+            if (currentApiCalls >= 100) {
+                lockForApiCalls();
+            }
             waitForLock();
             mapUser(id64);
         }
@@ -114,12 +112,7 @@ public class SteamAccountFinder {
 
         SteamAccount.SteamAccountBuilder accountBuilder =
             SteamAccount.SteamAccountBuilder.create()
-                .withId64(id64)
-                .withPrivateFriends(false)
-                .withPrivateGames(false)
-                .withHasCsgo(false);
-
-        mapGames(accountBuilder, id64);
+                .withId64(id64);
 
         if (!mapInventory(accountBuilder, id64)) {
             return;
@@ -132,90 +125,73 @@ public class SteamAccountFinder {
         steamAccountService.save(accountBuilder.build());
     }
 
-    private void mapGames(SteamAccount.SteamAccountBuilder accountBuilder, String id64) {
-        LOGGER.info("Mapping games for user with id: {}", id64);
-
-        HttpGameResponse httpGameResponse = null;
-        try {
-            currentApiCalls++;
-            httpGameResponse = restTemplate.getForObject(urlProvider.getGamesRequest(id64), HttpGameResponse.class);
-        } catch (RestClientResponseException e) {
-            if (e.getRawStatusCode() == 429) {
-                lockAndCircleKey();
-                return;
-            }
-            accountBuilder.withPrivateGames(true);
-            accountBuilder.withHasCsgo(false);
-        }
-
-        if (httpGameResponse != null) {
-            accountBuilder.withPrivateGames(httpGameResponse.hasGamesPrivate());
-            accountBuilder.withHasCsgo(httpGameResponse.hasCsgo());
-        }
-    }
-
     private boolean mapInventory(SteamAccount.SteamAccountBuilder accountBuilder, String id64) {
         LOGGER.info("Mapping inventory for user with id: {}", id64);
 
-        HttpInventoryResponse httpInventoryResponse = null;
+        HttpInventoryResponse httpInventoryResponse;
         try {
             currentApiCalls++;
             httpInventoryResponse = restTemplate.getForObject(urlProvider.getFirstInventoryRequestUri(id64), HttpInventoryResponse.class);
         } catch (RestClientResponseException e) {
             if (e.getRawStatusCode() == 403) {
                 accountBuilder.withCSGOInventory(null);
+                return true;
             } else if (e.getRawStatusCode() == 429) {
                 lockAndCircleKey();
-            } else {
-                return false;
             }
+            return false;
         }
 
-        if (httpInventoryResponse != null) {
-            if (!httpInventoryResponse.successful()) {
-                return false;
-            }
-            Map<String, Integer> inventoryMap = httpInventoryResponse.getInventory();
-            Map<String, String> typeMap = httpInventoryResponse.getTypes();
+        if (httpInventoryResponse == null || !httpInventoryResponse.successful()) {
+            return true;
+        }
 
-            if (httpInventoryResponse.hasMoreItems()) {
-                HttpInventoryResponse httpInventoryResponse1 = null;
-                try {
-                    currentApiCalls++;
-                    httpInventoryResponse1 = restTemplate.getForObject(urlProvider.getInventoryRequestUriWithStart(id64, httpInventoryResponse.getLastAssetId()), HttpInventoryResponse.class);
-                } catch (RestClientResponseException e) {
-                    if (e.getRawStatusCode() == 429) {
-                        lockAndCircleKey();
-                    }
+        Map<String, Integer> inventoryMap = httpInventoryResponse.getInventory();
+        Map<String, String> typeMap = httpInventoryResponse.getTypes();
+
+        if (httpInventoryResponse.hasMoreItems()) {
+            HttpInventoryResponse httpInventoryResponse1;
+            try {
+                currentApiCalls++;
+                httpInventoryResponse1 = restTemplate.getForObject(urlProvider.getInventoryRequestUriWithStart(id64, httpInventoryResponse.getLastAssetId()), HttpInventoryResponse.class);
+            } catch (RestClientResponseException e) {
+                if (e.getRawStatusCode() == 429) {
+                    lockAndCircleKey();
                 }
-                httpInventoryResponse1.getInventory().forEach((key, value) -> {
-                    if (inventoryMap.containsKey(key)) {
-                        inventoryMap.put(key, inventoryMap.get(key) + value);
-                    } else {
-                        inventoryMap.put(key, value);
-                    }
-                });
-
-                httpInventoryResponse1.getTypes().forEach((key, value) -> {
-                    if (typeMap.containsKey(key) && !typeMap.get(key).equals(value)) {
-                        LOGGER.warn("ClassID {} with value {} already assigned to value {}", key, value, typeMap.get(key));
-                    } else {
-                        typeMap.put(key, value);
-                    }
-                });
+                return false;
             }
 
-            CSGOInventory.CSGOInventoryBuilder builder = CSGOInventory.CSGOInventoryBuilder.create();
-            if (inventoryMap != null) {
-                builder.withItems(itemManager.convert(inventoryMap, typeMap));
-                CSGOInventory inventory = csgoInventoryService.save(builder.build());
-                accountBuilder.withCSGOInventory(inventory);
-            } else {
-                LOGGER.info("Not converting inventory, it is empty");
+            if (httpInventoryResponse1 == null) {
+                return false;
             }
+
+            combineMaps(inventoryMap, typeMap, httpInventoryResponse1);
         }
+
+        CSGOInventory.CSGOInventoryBuilder builder = CSGOInventory.CSGOInventoryBuilder.create()
+            .withItems(itemManager.convert(inventoryMap, typeMap));
+        CSGOInventory inventory = csgoInventoryService.save(builder.build());
+        accountBuilder.withCSGOInventory(inventory);
 
         return true;
+    }
+
+    private void combineMaps(Map<String, Integer> inventoryMap, Map<String, String> typeMap, HttpInventoryResponse httpInventoryResponse1) {
+        httpInventoryResponse1.getInventory().forEach((key, value) -> {
+            if (inventoryMap.containsKey(key)) {
+                inventoryMap.put(key, inventoryMap.get(key) + value);
+            } else {
+                inventoryMap.put(key, value);
+            }
+        });
+
+        httpInventoryResponse1.getTypes().forEach((key, value) -> {
+            if (typeMap.containsKey(key) && !typeMap.get(key).equals(value)) {
+                LOGGER.warn("ClassID {} with value {} already assigned to value {}", key, value, typeMap.get(key));
+            } else {
+                typeMap.put(key, value);
+            }
+        });
     }
 
     private void mapFriends(SteamAccount.SteamAccountBuilder accountBuilder, String id64) {
@@ -226,9 +202,7 @@ public class SteamAccountFinder {
             currentApiCalls++;
             httpFriendsResponse = restTemplate.getForObject(urlProvider.getFriendsRequestUri(id64), HttpFriendsResponse.class);
         } catch (RestClientResponseException e) {
-            if (e.getRawStatusCode() == 401) {
-                accountBuilder.withPrivateFriends(true);
-            } else if (e.getRawStatusCode() == 429) {
+            if (e.getRawStatusCode() == 429) {
                 lockAndCircleKey();
             }
             accountBuilder.withFriendIds(null);
@@ -242,10 +216,10 @@ public class SteamAccountFinder {
     }
 
     private void lockForApiCalls() {
-        LOGGER.info("100 api calls exceeded - sleeping for two minutes and resetting counter to avoid 429.");
+        LOGGER.info("100 api calls exceeded - sleeping for one minute and resetting counter to avoid 429.");
         int counter = 0;
         try {
-            while(counter++ < 12) {
+            while (counter++ < 6) {
                 Thread.sleep(10_000);
                 LOGGER.info("Still waiting.");
             }

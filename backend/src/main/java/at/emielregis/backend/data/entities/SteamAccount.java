@@ -20,15 +20,6 @@ public class SteamAccount {
     @Column(unique = true, nullable = false, length = 17)
     private String id64;
 
-    @Column(nullable = false)
-    private boolean hasCsgo;
-
-    @Column(nullable = false)
-    private boolean privateGames;
-
-    @Column(nullable = false)
-    private boolean privateFriends;
-
     @OneToOne(fetch = FetchType.EAGER)
     private CSGOInventory csgoInventory;
 
@@ -39,12 +30,10 @@ public class SteamAccount {
 
     }
 
-    @Override
     public String toString() {
         return "SteamAccount{" +
             "id=" + id +
             ", id64='" + id64 + '\'' +
-            ", hasCsgo=" + hasCsgo +
             ", csgoInventory=" + csgoInventory +
             ", friendIds=" + friendIds +
             '}';
@@ -66,14 +55,6 @@ public class SteamAccount {
         this.id64 = id64;
     }
 
-    public boolean hasCsgo() {
-        return hasCsgo;
-    }
-
-    public void setHasCsgo(boolean hasCsgo) {
-        this.hasCsgo = hasCsgo;
-    }
-
     public CSGOInventory getCsgoInventory() {
         return csgoInventory;
     }
@@ -90,25 +71,8 @@ public class SteamAccount {
         this.friendIds = friendIds;
     }
 
-    public boolean isPrivateGames() {
-        return privateGames;
-    }
-
-    public void setPrivateGames(boolean privateGames) {
-        this.privateGames = privateGames;
-    }
-
-    public boolean isPrivateFriends() {
-        return privateFriends;
-    }
-
-    public void setPrivateFriends(boolean privateFriends) {
-        this.privateFriends = privateFriends;
-    }
-
     public static class SteamAccountBuilder {
         private String id64;
-        private boolean hasCsgo, privateGames, privateFriends;
         private CSGOInventory csgoInventory;
         private List<String> friendIds;
 
@@ -125,21 +89,6 @@ public class SteamAccount {
             return this;
         }
 
-        public SteamAccountBuilder withHasCsgo(boolean hasCsgo) {
-            this.hasCsgo = hasCsgo;
-            return this;
-        }
-
-        public SteamAccountBuilder withPrivateFriends(boolean privateFriends) {
-            this.privateFriends = privateFriends;
-            return this;
-        }
-
-        public SteamAccountBuilder withPrivateGames(boolean privateGames) {
-            this.privateGames = privateGames;
-            return this;
-        }
-
         public SteamAccountBuilder withCSGOInventory(CSGOInventory csgoInventory) {
             this.csgoInventory = csgoInventory;
             return this;
@@ -153,9 +102,6 @@ public class SteamAccount {
         public SteamAccount build() {
             SteamAccount account = new SteamAccount();
             account.setId64(id64);
-            account.setHasCsgo(hasCsgo);
-            account.setPrivateFriends(privateFriends);
-            account.setPrivateGames(privateGames);
             account.setCsgoInventory(csgoInventory);
             account.setFriendIds(friendIds);
             return account;

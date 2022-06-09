@@ -27,19 +27,18 @@ public class SteamAccountService {
     }
 
     public SteamAccount save(SteamAccount account) {
+        if (account.getFriendIds() != null) {
+            account.setFriendIds(account.getFriendIds().stream().filter(steamAccountRepository::idNotStoredYet).collect(Collectors.toList()));
+        }
         return steamAccountRepository.save(account);
     }
 
     public boolean containsBy64Id(String id64) {
-        return steamAccountRepository.containsBy64Id(id64);
+        return steamAccountRepository.containsById64(id64);
     }
 
     public long getMaxPossibleAccounts() {
-        return steamAccountRepository.getMaxPossibleAccounts();
-    }
-
-    public List<SteamAccount> getAll() {
-        return steamAccountRepository.findAll();
+        return steamAccountRepository.getAmountOfUniqueAccountIDs();
     }
 
     public List<SteamAccount> getAllWithInventory() {

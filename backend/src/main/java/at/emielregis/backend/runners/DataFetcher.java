@@ -20,10 +20,10 @@ import java.util.stream.Collectors;
 
 @Component
 @Transactional
-public class DataServer {
+public class DataFetcher {
     private final SteamAccountService steamAccountService;
 
-    public DataServer(SteamAccountService steamAccountService) {
+    public DataFetcher(SteamAccountService steamAccountService) {
         this.steamAccountService = steamAccountService;
     }
 
@@ -35,13 +35,13 @@ public class DataServer {
     public void findContainers() {
         Map<Item, Integer> combinedItemMap = getCombinedItemMap();
 
-        List<Map.Entry<Item, Integer>> baseContainers = new ArrayList<>(combinedItemMap.entrySet()
+        List<Map.Entry<Item, Integer>> combinedContainerMap = new ArrayList<>(combinedItemMap.entrySet()
             .stream().filter(entry -> entry.getKey().getType().getName().equals("Base Grade Container"))
             .sorted(Comparator.comparingInt(Map.Entry::getValue)).toList());
 
-        Collections.reverse(baseContainers);
+        Collections.reverse(combinedContainerMap);
 
-        for (Map.Entry<Item, Integer> entry : baseContainers) {
+        for (Map.Entry<Item, Integer> entry : combinedContainerMap) {
             System.out.println(entry.getKey().getName() + " - " + entry.getValue());
         }
     }
