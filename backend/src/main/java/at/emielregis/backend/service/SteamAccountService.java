@@ -28,7 +28,8 @@ public class SteamAccountService {
 
     public SteamAccount save(SteamAccount account) {
         if (account.getFriendIds() != null) {
-            account.setFriendIds(account.getFriendIds().stream().filter(steamAccountRepository::idNotStoredYet).collect(Collectors.toList()));
+            List<String> allFriendIds = steamAccountRepository.getAllUniqueFriendIDs();
+            account.setFriendIds(account.getFriendIds().stream().filter(id -> !allFriendIds.contains(id)).collect(Collectors.toList()));
         }
         return steamAccountRepository.save(account);
     }

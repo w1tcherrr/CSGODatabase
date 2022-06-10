@@ -26,11 +26,4 @@ public class HttpFriendsResponse {
     public List<String> getFriendId64s() {
         return friendIds;
     }
-
-    @Override
-    public String toString() {
-        return "HttpFriendsResponse{" +
-            "friendIds=" + friendIds +
-            '}';
-    }
 }

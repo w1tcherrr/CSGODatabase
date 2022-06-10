@@ -27,12 +27,12 @@ public interface SteamAccountRepository extends JpaRepository<SteamAccount, Long
     long getAmountOfUniqueAccountIDs();
 
     @Query(
+        value = "Select distinct id from SteamAccount a left join a.friendIds id"
+    )
+    List<String> getAllUniqueFriendIDs();
+
+    @Query(
         value = "Select a from SteamAccount a where a.csgoInventory IS NOT NULL"
     )
     List<SteamAccount> findAllWithInventory();
-
-    @Query(
-        value = "Select count(a) = 0 from SteamAccount a left join a.friendIds id where id = :id OR a.id = :id"
-    )
-    boolean idNotStoredYet(@Param(value = "id") String id);
 }

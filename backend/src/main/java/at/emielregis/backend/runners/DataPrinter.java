@@ -20,16 +20,17 @@ import java.util.stream.Collectors;
 
 @Component
 @Transactional
-public class DataFetcher {
+public class DataPrinter {
     private final SteamAccountService steamAccountService;
 
-    public DataFetcher(SteamAccountService steamAccountService) {
+    public DataPrinter(SteamAccountService steamAccountService) {
         this.steamAccountService = steamAccountService;
     }
 
     @EventListener(ApplicationReadyEvent.class)
-    public void searchPlayers() {
+    public void runDataFinder() {
         findContainers();
+        findDragonLores();
     }
 
     public void findContainers() {
@@ -41,7 +42,22 @@ public class DataFetcher {
 
         Collections.reverse(combinedContainerMap);
 
+        System.out.println(" CONTAINERS ");
         for (Map.Entry<Item, Integer> entry : combinedContainerMap) {
+            System.out.println(entry.getKey().getName() + " - " + entry.getValue());
+        }
+    }
+
+    public void findDragonLores() {
+        Map<Item, Integer> combinedItemMap = getCombinedItemMap();
+        List<Map.Entry<Item, Integer>> combinedDragonMap = new ArrayList<>(combinedItemMap.entrySet()
+            .stream().filter(entry -> entry.getKey().getName().toLowerCase().contains("dragon lore"))
+            .sorted(Comparator.comparingInt(Map.Entry::getValue)).toList());
+
+        Collections.reverse(combinedDragonMap);
+
+        System.out.println(" DRAGON LORES ");
+        for (Map.Entry<Item, Integer> entry : combinedDragonMap) {
             System.out.println(entry.getKey().getName() + " - " + entry.getValue());
         }
     }

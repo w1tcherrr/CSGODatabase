@@ -1,6 +1,6 @@
 package at.emielregis.backend.service;
 
-import at.emielregis.backend.runners.SteamAccountFinder;
+import at.emielregis.backend.runners.SteamAccountMapper;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
@@ -43,7 +43,7 @@ public class UrlProvider {
     }
 
     private static List<String> getApiKeys() {
-        InputStreamReader r = new InputStreamReader(Objects.requireNonNull(SteamAccountFinder.class.getClassLoader().getResourceAsStream("keys.txt")));
+        InputStreamReader r = new InputStreamReader(Objects.requireNonNull(SteamAccountMapper.class.getClassLoader().getResourceAsStream("keys.txt")));
         BufferedReader reader = new BufferedReader(r);
         return reader.lines().filter(line -> !line.isEmpty()).filter(line -> !line.startsWith("#")).map(String::trim).toList();
     }

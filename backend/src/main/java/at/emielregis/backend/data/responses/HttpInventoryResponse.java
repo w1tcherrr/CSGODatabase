@@ -50,18 +50,16 @@ public class HttpInventoryResponse {
 
     @JsonProperty("assets")
     private void unpackAssets(List<Map<String, Object>> assets) {
-        assets.forEach(map -> {
-                map.forEach((key, value) -> {
-                    if (key.equals("classid")) {
-                        String itemName = (String) value;
-                        if (inventoryByIds.containsKey(itemName)) {
-                            inventoryByIds.put(itemName, inventoryByIds.get(itemName) + 1);
-                        } else {
-                            inventoryByIds.put(itemName, 1);
-                        }
-                    }
-                });
+        assets.forEach(map -> map.forEach((key, value) -> {
+            if (key.equals("classid")) {
+                String itemName = (String) value;
+                if (inventoryByIds.containsKey(itemName)) {
+                    inventoryByIds.put(itemName, inventoryByIds.get(itemName) + 1);
+                } else {
+                    inventoryByIds.put(itemName, 1);
+                }
             }
+        })
         );
     }
 
@@ -95,14 +93,5 @@ public class HttpInventoryResponse {
 
     public boolean successful() {
         return success != null && success == 1;
-    }
-
-    @Override
-    public String toString() {
-        return "HttpInventoryResponse{" +
-            "inventory=" + inventoryByIds +
-            ", more_items=" + hasMoreItems +
-            ", last_assetid='" + lastAssetId + '\'' +
-            '}';
     }
 }

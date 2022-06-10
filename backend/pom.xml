@@ -161,8 +161,8 @@
                     </from>
                     <container>
                         <ports>
-                            <port>8080</port>
-                            <port>8081</port>
+                            <port>8090</port>
+                            <port>8091</port>
                         </ports>
                         <creationTime>USE_CURRENT_TIMESTAMP</creationTime>
                         <jvmFlags>

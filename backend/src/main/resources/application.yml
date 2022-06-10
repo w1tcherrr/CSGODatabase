@@ -40,7 +40,7 @@ security:
 
 management:
   server:
-    port: 8081
+    port: 8091
   endpoint:
     shutdown:
       enabled: true
