@@ -52,7 +52,7 @@ public class Item {
     @ManyToMany
     private List<Sticker> stickers;
 
-    @Column(nullable = false, updatable = false)
+    @Column(updatable = false)
     private Exterior exterior;
 
     @ManyToOne(optional = false)
