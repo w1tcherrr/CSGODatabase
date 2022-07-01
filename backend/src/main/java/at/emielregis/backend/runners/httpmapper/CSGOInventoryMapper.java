@@ -1,7 +1,9 @@
-package at.emielregis.backend.runners;
+package at.emielregis.backend.runners.httpmapper;
 
+import at.emielregis.backend.data.dtos.TransientItem;
+import at.emielregis.backend.data.entities.CSGOAccount;
 import at.emielregis.backend.data.entities.CSGOInventory;
-import at.emielregis.backend.data.entities.SteamAccount;
+import at.emielregis.backend.data.enums.HttpResponseMappingStatus;
 import at.emielregis.backend.data.responses.HttpInventoryResponse;
 import at.emielregis.backend.service.BusyWaitingService;
 import at.emielregis.backend.service.CSGOInventoryService;
@@ -14,7 +16,8 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 public class CSGOInventoryMapper {
@@ -22,44 +25,44 @@ public class CSGOInventoryMapper {
 
     private final CSGOInventoryService csgoInventoryService;
     private final ItemManager itemManager;
-    private final RestTemplate restTemplate;
     private final UrlProvider urlProvider;
     private final BusyWaitingService busyWaitingService;
 
     public CSGOInventoryMapper(CSGOInventoryService csgoInventoryService,
                                ItemManager itemManager,
                                UrlProvider urlProvider,
-                               BusyWaitingService busyWaitingService,
-                               RestTemplate restTemplate) {
+                               BusyWaitingService busyWaitingService) {
         this.csgoInventoryService = csgoInventoryService;
         this.itemManager = itemManager;
-        this.restTemplate = restTemplate;
         this.urlProvider = urlProvider;
         this.busyWaitingService = busyWaitingService;
     }
 
-    public boolean getInventory(SteamAccount.SteamAccountBuilder accountBuilder, String id64) {
+    public HttpResponseMappingStatus getAndSaveInventory(CSGOAccount.CSGOAccountBuilder accountBuilder, String id64, RestTemplate restTemplate) {
         LOGGER.info("Mapping inventory for user with id: {}", id64);
 
         HttpInventoryResponse httpInventoryResponse;
         try {
             httpInventoryResponse = restTemplate.getForObject(urlProvider.getFirstInventoryRequestUri(id64), HttpInventoryResponse.class);
-        } catch (RestClientResponseException e) {
-            if (e.getRawStatusCode() == 403) {
-                accountBuilder.withCSGOInventory(null);
-                return true;
-            } else if (e.getRawStatusCode() == 429) {
-                busyWaitingService.waitAndCircleKey(2);
+        } catch (Exception ex) {
+            if (ex instanceof RestClientResponseException e) {
+                if (e.getRawStatusCode() == 403) {
+                    return HttpResponseMappingStatus.FORBIDDEN;
+                } else if (e.getRawStatusCode() == 429) {
+                    busyWaitingService.wait(1);
+                }
+            } else {
+                busyWaitingService.wait(5);
+                return HttpResponseMappingStatus.NO_INTERNET;
             }
-            return false;
+            return HttpResponseMappingStatus.FAILED;
         }
 
         if (httpInventoryResponse == null || !httpInventoryResponse.successful()) {
-            return true;
+            return HttpResponseMappingStatus.FAILED;
         }
 
-        Map<String, Integer> inventoryMap = httpInventoryResponse.getInventory();
-        Map<String, String> typeMap = httpInventoryResponse.getTypes();
+        List<TransientItem> itemList = httpInventoryResponse.getInventory();
 
         if (httpInventoryResponse.hasMoreItems()) {
             HttpInventoryResponse httpInventoryResponse1;
@@ -67,16 +70,16 @@ public class CSGOInventoryMapper {
                 httpInventoryResponse1 = restTemplate.getForObject(urlProvider.getInventoryRequestUriWithStart(id64, httpInventoryResponse.getLastAssetId()), HttpInventoryResponse.class);
             } catch (RestClientResponseException e) {
                 if (e.getRawStatusCode() == 429) {
-                    busyWaitingService.waitAndCircleKey(2);
+                    busyWaitingService.wait(1);
                 }
-                return false;
+                return HttpResponseMappingStatus.FAILED;
             }
 
             if (httpInventoryResponse1 == null) {
-                return false;
+                return HttpResponseMappingStatus.FAILED;
             }
 
-            combineMaps(inventoryMap, typeMap, httpInventoryResponse1);
+            itemList = combineLists(itemList, httpInventoryResponse1);
 
             if (httpInventoryResponse1.hasMoreItems()) {
                 HttpInventoryResponse httpInventoryResponse2;
@@ -84,42 +87,46 @@ public class CSGOInventoryMapper {
                     httpInventoryResponse2 = restTemplate.getForObject(urlProvider.getInventoryRequestUriWithStart(id64, httpInventoryResponse1.getLastAssetId()), HttpInventoryResponse.class);
                 } catch (RestClientResponseException e) {
                     if (e.getRawStatusCode() == 429) {
-                        busyWaitingService.waitAndCircleKey(2);
+                        busyWaitingService.wait(1);
                     }
-                    return false;
+                    return HttpResponseMappingStatus.FAILED;
                 }
 
                 if (httpInventoryResponse2 == null) {
-                    return false;
+                    return HttpResponseMappingStatus.FAILED;
                 }
 
-                combineMaps(inventoryMap, typeMap, httpInventoryResponse2);
+                itemList = combineLists(itemList, httpInventoryResponse2);
             }
         }
 
-        CSGOInventory.CSGOInventoryBuilder builder = CSGOInventory.CSGOInventoryBuilder.create()
-            .withItems(itemManager.convert(inventoryMap, typeMap));
-        CSGOInventory inventory = csgoInventoryService.save(builder.build());
-        accountBuilder.withCSGOInventory(inventory);
+        CSGOInventory.CSGOInventoryBuilder builder = CSGOInventory.builder().items(itemManager.convert(itemList));
+        CSGOInventory inventory = builder.build();
+        csgoInventoryService.save(inventory);
+        accountBuilder.csgoInventory(inventory);
 
-        return true;
+        return HttpResponseMappingStatus.SUCCESS;
     }
 
-    private void combineMaps(Map<String, Integer> inventoryMap, Map<String, String> typeMap, HttpInventoryResponse httpInventoryResponse1) {
-        httpInventoryResponse1.getInventory().forEach((key, value) -> {
-            if (inventoryMap.containsKey(key)) {
-                inventoryMap.put(key, inventoryMap.get(key) + value);
+    private List<TransientItem> combineLists(List<TransientItem> transientItems, HttpInventoryResponse httpInventoryResponse1) {
+        transientItems = new ArrayList<>(transientItems);
+        for (TransientItem item : httpInventoryResponse1.getInventory()) {
+            TransientItem item1 = getByObject(transientItems, item);
+            if (item1 != null) {
+                item1.setAmount(item.getAmount() + item1.getAmount());
             } else {
-                inventoryMap.put(key, value);
+                transientItems.add(item);
             }
-        });
+        }
+        return transientItems;
+    }
 
-        httpInventoryResponse1.getTypes().forEach((key, value) -> {
-            if (typeMap.containsKey(key) && !typeMap.get(key).equals(value)) {
-                LOGGER.warn("ClassID {} with value {} already assigned to value {}", key, value, typeMap.get(key));
-            } else {
-                typeMap.put(key, value);
+    private TransientItem getByObject(List<TransientItem> transientItems, TransientItem item) {
+        for (TransientItem transientItem : transientItems) {
+            if (transientItem.equals(item)) {
+                return transientItem;
             }
-        });
+        }
+        return null;
     }
 }

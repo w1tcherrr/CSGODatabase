@@ -1,69 +1,60 @@
 package at.emielregis.backend.data.entities;
 
+import at.emielregis.backend.data.enums.Exterior;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
+import java.util.List;
 
 @Entity
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Item {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column
-    private String name;
+    @ManyToOne
+    private ClassID classID;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    private ItemType type;
+    @Column(nullable = false, updatable = false)
+    private int amount;
 
-    public String getName() {
-        return name;
-    }
+    @Column(updatable = false)
+    private String nameTag;
 
-    public void setName(String name) {
-        this.name = name;
-    }
+    @Column(nullable = false, updatable = false)
+    private boolean tradable;
 
-    public ItemType getType() {
-        return type;
-    }
+    @Column(nullable = false, updatable = false)
+    private boolean statTrak;
 
-    public void setType(ItemType type) {
-        this.type = type;
-    }
+    @Column(nullable = false, updatable = false)
+    private boolean souvenir;
 
-    public static class ItemBuilder {
-        private String name;
-        private ItemType itemType;
+    @ManyToOne(optional = false)
+    private ItemName name;
 
-        private ItemBuilder() {
+    @ManyToMany
+    private List<Sticker> stickers;
 
-        }
+    @Column(nullable = false, updatable = false)
+    private Exterior exterior;
 
-        public static ItemBuilder create() {
-            return new ItemBuilder();
-        }
-
-        public ItemBuilder withName(String name) {
-            this.name = name;
-            return this;
-        }
-
-        public ItemBuilder withItemType(ItemType itemType) {
-            this.itemType = itemType;
-            return this;
-        }
-
-        public Item build() {
-            Item item = new Item();
-            item.setName(name);
-            item.setType(itemType);
-            return item;
-        }
-    }
+    @ManyToOne(optional = false)
+    private ItemCategory category;
 }

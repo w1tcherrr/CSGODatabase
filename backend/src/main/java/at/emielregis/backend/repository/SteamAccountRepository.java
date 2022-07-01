@@ -8,31 +8,12 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface SteamAccountRepository extends JpaRepository<SteamAccount, Long> {
-    @Query(
-        value = "Select count(a) > 0 from SteamAccount a where a.id64 = :id"
-    )
-    boolean containsById64(@Param(value = "id") String id);
+    @Query("select distinct s.id64 from SteamAccount s left join CSGOAccount c on c.id64 = s.id64 where c is NULL")
+    List<String> findAllUnmappedIDs();
 
-    @Query(
-        value = "Select distinct id from " +
-            "SteamAccount a join a.friendIds id " +
-            "WHERE id NOT IN (SELECT distinct b.id64 from SteamAccount b) " +
-            "AND a.csgoInventory IS NOT NULL"
-    )
-    List<String> findNextIds();
+    @Query("select count(distinct s) from SteamAccount s left join CSGOAccount c on c.id64 = s.id64 where c is NULL")
+    long unmappedCount();
 
-    @Query(
-        value = "Select count(distinct id) from SteamAccount a left join a.friendIds id"
-    )
-    long getAmountOfUniqueAccountIDs();
-
-    @Query(
-        value = "Select distinct id from SteamAccount a left join a.friendIds id"
-    )
-    List<String> getAllUniqueFriendIDs();
-
-    @Query(
-        value = "Select a from SteamAccount a where a.csgoInventory IS NOT NULL"
-    )
-    List<SteamAccount> findAllWithInventory();
+    @Query("select count(s) > 0 from SteamAccount s where s.id64 = :id")
+    boolean containsById64(@Param("id") String current);
 }

@@ -1,0 +1,81 @@
+package at.emielregis.backend.service.mapper;
+
+import at.emielregis.backend.data.dtos.TransientItem;
+import at.emielregis.backend.data.dtos.TransientItemCategory;
+import at.emielregis.backend.data.dtos.TransientSticker;
+import at.emielregis.backend.data.entities.ClassID;
+import at.emielregis.backend.data.entities.Item;
+import at.emielregis.backend.data.entities.ItemCategory;
+import at.emielregis.backend.data.entities.ItemName;
+import at.emielregis.backend.data.entities.Sticker;
+import at.emielregis.backend.repository.ClassIdRepository;
+import at.emielregis.backend.repository.ItemCategoryRepository;
+import at.emielregis.backend.repository.ItemNameRepository;
+import at.emielregis.backend.repository.ItemTypeRepository;
+import at.emielregis.backend.repository.StickerRepository;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Component
+public record Mapper(ItemTypeRepository itemTypeRepository,
+                     StickerRepository stickerRepository,
+                     ItemCategoryRepository itemCategoryRepository,
+                     ItemNameRepository itemNameRepository,
+                     ClassIdRepository classIdRepository) {
+    public synchronized Item mapAndSave(TransientItem transientItem) {
+        return Item.builder()
+            .classID(mapClassId(transientItem.getClassID()))
+            .amount(transientItem.getAmount())
+            .name(mapAndSave(transientItem.getName()))
+            .nameTag(transientItem.getNameTag())
+            .tradable(transientItem.isTradable())
+            .statTrak(transientItem.isStatTrak())
+            .souvenir(transientItem.isSouvenir())
+            .category(mapAndSave(transientItem.getCategory()))
+            .stickers(mapAndSave(transientItem.getStickers()))
+            .exterior(transientItem.getExterior())
+            .build();
+    }
+
+    private ClassID mapClassId(String classId) {
+        if (classIdRepository.existsByClassId(classId)) {
+            return classIdRepository.getByClassId(classId);
+        }
+        ClassID id = ClassID.builder().classId(classId).build();
+        return classIdRepository.save(id);
+    }
+
+    private ItemCategory mapAndSave(TransientItemCategory type) {
+        if (itemTypeRepository.existsByName(type.getName())) {
+            return itemTypeRepository.getByName(type.getName());
+        }
+        ItemCategory category = ItemCategory.builder().name(type.getName()).build();
+        return itemCategoryRepository.save(category);
+    }
+
+    private List<Sticker> mapAndSave(List<TransientSticker> stickers) {
+        if (stickers == null) {
+            return new ArrayList<>();
+        }
+        List<Sticker> stickerList = new ArrayList<>();
+        for (TransientSticker sticker : stickers) {
+            if (stickerRepository.existsByName(sticker.getName())) {
+                stickerList.add(stickerRepository.getByName(sticker.getName()));
+            } else {
+                Sticker sticker1 = Sticker.builder().name(sticker.getName()).build();
+                stickerList.add(stickerRepository.save(sticker1));
+            }
+        }
+        return stickerList;
+    }
+
+    private ItemName mapAndSave(String name) {
+        if (itemNameRepository.existsByName(name)) {
+            return itemNameRepository.getByName(name);
+        }
+        ItemName name1 = ItemName.builder().name(name).build();
+        return itemNameRepository.save(name1);
+    }
+}

@@ -12,7 +12,7 @@ public class CSGOInventoryService {
         this.csgoInventoryRepository = csgoInventoryRepository;
     }
 
-    public CSGOInventory save(CSGOInventory inventory) {
-        return csgoInventoryRepository.save(inventory);
+    public void save(CSGOInventory inventory) {
+        csgoInventoryRepository.save(inventory);
     }
 }

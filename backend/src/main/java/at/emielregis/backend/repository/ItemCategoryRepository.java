@@ -3,8 +3,5 @@ package at.emielregis.backend.repository;
 import at.emielregis.backend.data.entities.ItemCategory;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface ItemTypeRepository extends JpaRepository<ItemCategory, Long> {
-    boolean existsByName(String name);
-
-    ItemCategory getByName(String name);
+public interface ItemCategoryRepository extends JpaRepository<ItemCategory, Long> {
 }
