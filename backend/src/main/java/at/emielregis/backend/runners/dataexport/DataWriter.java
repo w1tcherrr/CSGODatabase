@@ -71,7 +71,6 @@ public class DataWriter {
         return new ArrayList<>();
     }
 
-
     private void writeToFile(String fileName, List<String> lines) {
         String directoryName = "C:\\Users\\mitch\\Documents\\GitHub\\CSGODatabaseSpring\\output";
 

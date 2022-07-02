@@ -11,12 +11,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.lang.invoke.MethodHandles;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Objects;
 
 @Component
 public class SteamAccountMapper {
@@ -27,26 +28,13 @@ public class SteamAccountMapper {
     private final SteamAccountService steamAccountService;
     private final SteamGroupMapper steamGroupMapper;
 
-    private static final long MAX_CSGO_ACCOUNTS = 20_000;
-    private static final long MAX_STEAM_ACCOUNTS = 50_000; // this should be at least twice the above amount - since not all steam accounts have csgo
+    private static final long MAX_CSGO_ACCOUNTS = 100_000;
+    private static final long MAX_STEAM_ACCOUNTS = 250_000; // this should be at least twice the above amount - since not all steam accounts have csgo
 
     private long alreadyMappedAccounts = 0;
     private boolean stop;
 
-    private static final List<String[]> proxies = new ArrayList<>(List.of(
-        new String[]{"45.140.13.119", "9132"},
-        new String[]{"45.142.28.83", "8094"},
-        new String[]{"176.116.230.151", "7237"},
-        new String[]{"176.116.230.128", "7214"},
-        new String[]{"45.142.28.20", "8031"},
-        new String[]{"45.140.13.112", "9125"},
-        new String[]{"45.142.28.187", "8198"},
-        new String[]{"45.140.13.124", "9137"},
-        new String[]{"45.142.28.145", "8156"},
-        new String[]{"45.137.60.112", "6640"}
-    ));
-
-    private static final int AMOUNT_OF_THREADS = proxies.size();
+    private static final int AMOUNT_OF_THREADS = getProxies().size();
 
     public SteamAccountMapper(
         CSGOAccountService csgoAccountService,
@@ -60,18 +48,23 @@ public class SteamAccountMapper {
     }
 
     public void run() {
-        for (String[] proxyParams : proxies) {
+        for (String[] proxyParams : getProxies()) {
             new Thread(() -> {
                 Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyParams[0], Integer.parseInt(proxyParams[1])));
                 SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
                 requestFactory.setProxy(proxy);
                 RestTemplate template = new RestTemplate(requestFactory);
-
                 steamGroupMapper.findAccounts(MAX_STEAM_ACCOUNTS);
                 mapNextPlayers(template);
                 LOGGER.info("FINISHED EXECUTION OF THREAD");
             }).start();
         }
+    }
+
+    private static List<String[]> getProxies() {
+        InputStreamReader r = new InputStreamReader(Objects.requireNonNull(SteamAccountMapper.class.getClassLoader().getResourceAsStream("proxies.txt")));
+        BufferedReader reader = new BufferedReader(r);
+        return reader.lines().filter(line -> !line.isEmpty()).filter(line -> !line.startsWith("#")).map(String::trim).map(line -> line.split(":")).toList();
     }
 
     public void mapNextPlayers(RestTemplate template) {

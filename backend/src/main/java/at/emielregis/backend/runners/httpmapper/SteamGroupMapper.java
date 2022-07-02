@@ -70,9 +70,15 @@ public class SteamGroupMapper {
             } catch (Exception ex) {
                 if (ex instanceof RestClientResponseException e) {
                     if (e.getRawStatusCode() == 429) {
+                        synchronized (this) {
+                            --currentPage;
+                        }
                         busyWaitingService.wait(3);
                     }
                 } else {
+                    synchronized (this) {
+                        --currentPage;
+                    }
                     busyWaitingService.wait(5);
                 }
                 continue;

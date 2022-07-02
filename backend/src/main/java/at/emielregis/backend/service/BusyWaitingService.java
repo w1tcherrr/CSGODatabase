@@ -23,7 +23,7 @@ public class BusyWaitingService {
         while (isLocked()) {
             try {
                 LOGGER.info("Still locked due to 429.");
-                Thread.sleep(5000);
+                Thread.sleep(15000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

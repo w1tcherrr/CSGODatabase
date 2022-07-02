@@ -4,5 +4,5 @@
 /.idea/
 /database/
 /log/
-/backend/src/main/resources/keys.txt
+/backend/src/main/resources/proxies.txt
 /output/
