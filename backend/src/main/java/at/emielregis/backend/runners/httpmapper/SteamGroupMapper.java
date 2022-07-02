@@ -86,12 +86,14 @@ public class SteamGroupMapper {
                         synchronized (this) {
                             groupMap.put(currentGroup, groupMap.get(currentGroup) - 1);
                         }
+                        LOGGER.error("429 - Too many requests");
                         busyWaitingService.wait(3);
                     }
                 } else {
                     synchronized (this) {
                         groupMap.put(currentGroup, groupMap.get(currentGroup) - 1);
                     }
+                    LOGGER.error(ex.getMessage());
                     busyWaitingService.wait(5);
                 }
                 continue;

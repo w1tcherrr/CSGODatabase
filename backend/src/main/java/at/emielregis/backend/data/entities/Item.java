@@ -1,6 +1,7 @@
 package at.emielregis.backend.data.entities;
 
 import at.emielregis.backend.data.enums.Exterior;
+import at.emielregis.backend.data.enums.Rarity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -55,6 +56,12 @@ public class Item {
     @Column(updatable = false)
     private Exterior exterior;
 
+    @Column(updatable = false)
+    private Rarity rarity;
+
     @ManyToOne(optional = false)
     private ItemCategory category;
+
+    @ManyToOne
+    private ItemSet itemSet;
 }

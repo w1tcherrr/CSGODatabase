@@ -3,6 +3,7 @@ package at.emielregis.backend.runners.httpmapper;
 import at.emielregis.backend.data.entities.CSGOAccount;
 import at.emielregis.backend.data.enums.HttpResponseMappingStatus;
 import at.emielregis.backend.service.CSGOAccountService;
+import at.emielregis.backend.service.CSGOInventoryService;
 import at.emielregis.backend.service.SteamAccountService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,30 +25,34 @@ public class SteamAccountMapper {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private final CSGOAccountService csgoAccountService;
+    private final CSGOInventoryService csgoInventoryService;
     private final CSGOInventoryMapper csgoInventoryMapper;
     private final SteamAccountService steamAccountService;
     private final SteamGroupMapper steamGroupMapper;
 
-    private static final long MAX_CSGO_ACCOUNTS = 100_000;
-    private static final long MAX_STEAM_ACCOUNTS = 250_000; // this should be at least twice the above amount - since not all steam accounts have csgo
+    private static final long MAX_CSGO_ACCOUNTS = 50;
+    private static final long MAX_STEAM_ACCOUNTS = 1_000; // this should be at least twice the above amount - since not all steam accounts have csgo
 
-    private long alreadyMappedAccounts = 0;
+    private long alreadyMappedAccountsWithInventories = 0;
     private boolean stop;
 
     private static final int AMOUNT_OF_THREADS = getProxies().size();
+    private static final int MAX_PROXIES = 10;
 
     public SteamAccountMapper(
         CSGOAccountService csgoAccountService,
-        CSGOInventoryMapper csgoInventoryMapper,
+        CSGOInventoryService csgoInventoryService, CSGOInventoryMapper csgoInventoryMapper,
         SteamAccountService steamAccountService,
         SteamGroupMapper steamGroupMapper) {
         this.csgoAccountService = csgoAccountService;
+        this.csgoInventoryService = csgoInventoryService;
         this.csgoInventoryMapper = csgoInventoryMapper;
         this.steamAccountService = steamAccountService;
         this.steamGroupMapper = steamGroupMapper;
     }
 
     public void run() {
+        alreadyMappedAccountsWithInventories = csgoAccountService.countWithInventory();
         for (String[] proxyParams : getProxies()) {
             new Thread(() -> {
                 Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyParams[0], Integer.parseInt(proxyParams[1])));
@@ -64,7 +69,7 @@ public class SteamAccountMapper {
     private static List<String[]> getProxies() {
         InputStreamReader r = new InputStreamReader(Objects.requireNonNull(SteamAccountMapper.class.getClassLoader().getResourceAsStream("proxies.txt")));
         BufferedReader reader = new BufferedReader(r);
-        return reader.lines().filter(line -> !line.isEmpty()).filter(line -> !line.startsWith("#")).map(String::trim).map(line -> line.split(":")).toList();
+        return reader.lines().filter(line -> !line.isEmpty()).filter(line -> !line.startsWith("#")).map(String::trim).map(line -> line.split(":")).limit(MAX_PROXIES).toList();
     }
 
     private static List<String> getSteamGroups() {
@@ -76,10 +81,12 @@ public class SteamAccountMapper {
     public void mapNextPlayers(RestTemplate template) {
         LOGGER.info("Mapping next players");
 
-        alreadyMappedAccounts = csgoAccountService.countWithInventory();
-        List<String> nextAccounts = steamAccountService.findNextIds(Math.min(Math.max(1, (MAX_CSGO_ACCOUNTS - alreadyMappedAccounts) / AMOUNT_OF_THREADS), 100));
+        List<String> nextAccounts;
+        synchronized (this) {
+            nextAccounts = getIDs();
+        }
 
-        LOGGER.info("Already mapped {} players", alreadyMappedAccounts);
+        LOGGER.info("Already mapped {} players", alreadyMappedAccountsWithInventories);
         LOGGER.info("Mapping account with ids: {} next", nextAccounts);
 
         if (nextAccounts.size() == 0) {
@@ -96,11 +103,28 @@ public class SteamAccountMapper {
         mapNextPlayers(template);
     }
 
+    private List<String> getIDs() {
+        long max = MAX_CSGO_ACCOUNTS - alreadyMappedAccountsWithInventories;
+        long amount = Math.max(max / AMOUNT_OF_THREADS, 1);
+        amount = Math.min(amount, 100);
+        if (alreadyMappedAccountsWithInventories + amount > MAX_CSGO_ACCOUNTS) {
+            amount = MAX_CSGO_ACCOUNTS - alreadyMappedAccountsWithInventories;
+        }
+        if (amount <= 0) {
+            return List.of();
+        }
+        return steamAccountService.findNextIds(amount);
+    }
+
     @Transactional
     protected void mapUser(String id64, RestTemplate template) {
         synchronized (this) {
-            if (alreadyMappedAccounts >= MAX_CSGO_ACCOUNTS) {
+            if (alreadyMappedAccountsWithInventories >= MAX_CSGO_ACCOUNTS) {
                 stop = true;
+                return;
+            }
+
+            if (stop) {
                 return;
             }
         }
@@ -116,11 +140,21 @@ public class SteamAccountMapper {
             CSGOAccount.builder()
                 .id64(id64);
 
-        if (csgoInventoryMapper.getAndSaveInventory(accountBuilder, id64, template) == HttpResponseMappingStatus.FAILED) {
+        if (csgoInventoryMapper.getInventory(accountBuilder, id64, template) == HttpResponseMappingStatus.FAILED) {
             return;
         }
 
-        csgoAccountService.save(accountBuilder.build());
+        synchronized (this) {
+            CSGOAccount acc = accountBuilder.build();
+            if (acc.getCsgoInventory() != null) {
+                if (++alreadyMappedAccountsWithInventories > MAX_CSGO_ACCOUNTS) {
+                    --alreadyMappedAccountsWithInventories;
+                    return;
+                }
+                csgoInventoryService.save(acc.getCsgoInventory());
+            }
+            csgoAccountService.save(acc);
+        }
     }
 
     private boolean alreadyMapped(String id64) {

@@ -3,8 +3,10 @@ package at.emielregis.backend.data.responses;
 import at.emielregis.backend.data.dtos.TransientClassId;
 import at.emielregis.backend.data.dtos.TransientItem;
 import at.emielregis.backend.data.dtos.TransientItemCategory;
+import at.emielregis.backend.data.dtos.TransientItemSet;
 import at.emielregis.backend.data.dtos.TransientSticker;
 import at.emielregis.backend.data.enums.Exterior;
+import at.emielregis.backend.data.enums.Rarity;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -47,13 +49,17 @@ public class HttpInventoryResponse {
     @JsonProperty("descriptions")
     private void unpackNested(List<Map<String, Object>> descriptions) {
         descriptions.forEach(map -> {
-            AtomicReference<String> atomicName = new AtomicReference<>();
-            AtomicReference<String> atomicType = new AtomicReference<>();
-            AtomicReference<String> atomicClassId = new AtomicReference<>();
-            AtomicReference<String> atomicNameTag = new AtomicReference<>();
-            AtomicReference<Boolean> atomicTradable = new AtomicReference<>();
-            AtomicReference<Exterior> atomicExterior = new AtomicReference<>();
-            AtomicReference<List<TransientSticker>> atomicStickers = new AtomicReference<>();
+            final AtomicReference<String> atomicName = new AtomicReference<>();
+            final AtomicReference<String> atomicType = new AtomicReference<>();
+            final AtomicReference<String> atomicClassId = new AtomicReference<>();
+            final AtomicReference<String> atomicNameTag = new AtomicReference<>();
+            final AtomicReference<Boolean> atomicTradable = new AtomicReference<>();
+            final AtomicReference<Boolean> atomicStatTrak = new AtomicReference<>(false);
+            final AtomicReference<Boolean> atomicSouvenir = new AtomicReference<>(false);
+            final AtomicReference<Exterior> atomicExterior = new AtomicReference<>();
+            final AtomicReference<String> atomicItemSet = new AtomicReference<>();
+            final AtomicReference<Rarity> atomicRarity = new AtomicReference<>();
+            final AtomicReference<List<TransientSticker>> atomicStickers = new AtomicReference<>();
             map.forEach((key, value) -> {
                 if (key.equals("name")) {
                     atomicName.set((String) value);
@@ -75,17 +81,13 @@ public class HttpInventoryResponse {
                     List<Map<String, Object>> maps = (List<Map<String, Object>>) value;
                     maps.forEach(map1 -> map1.forEach((key1, value1) -> {
                         if (key1.equals("value")) {
-                            if (((String) value1).startsWith("Exterior: ")) {
-                                atomicExterior.set(Exterior.of(((String) value1).substring(10)));
-                            }
-
-                            if (((String) value1).contains("sticker_info")) {
+                            String value2 = (String) value1;
+                            if (value2.contains("sticker_info")) {
                                 List<TransientSticker> stickers = new ArrayList<>();
-                                String html = (String) value1;
-                                if (html.contains("<br>Sticker:")) {
-                                    html = html.substring(html.indexOf("<br>Sticker:")).substring(4);
-                                    html = html.substring(0, html.indexOf("</center>"));
-                                    Arrays.stream(html.split(",")).forEach(
+                                if (value2.contains("<br>Sticker:")) {
+                                    value2 = value2.substring(value2.indexOf("<br>Sticker:")).substring(4);
+                                    value2 = value2.substring(0, value2.indexOf("</center>"));
+                                    Arrays.stream(value2.split(",")).forEach(
                                         stickerName -> {
                                             stickerName = stickerName.trim();
                                             stickers.add(TransientSticker.builder().name(stickerName).build());
@@ -97,63 +99,79 @@ public class HttpInventoryResponse {
                         }
                     }));
                 }
+                if (key.equals("tags")) {
+                    List<Map<String, Object>> maps = (List<Map<String, Object>>) value;
+                    maps.forEach(map1 -> {
+                        String category = (String) map1.get("category");
+                        switch (category) {
+                            case "ItemSet" -> atomicItemSet.set((String) map1.get("localized_tag_name"));
+                            case "Rarity" -> atomicRarity.set(Rarity.of((String) map1.get("localized_tag_name")));
+                            case "Exterior" -> atomicExterior.set(Exterior.of((String) map1.get("localized_tag_name")));
+                            case "Quality" -> {
+                                String quality = (String) map1.get("localized_tag_name");
+                                if (quality.startsWith("StatTrak")) {
+                                    atomicStatTrak.set(true);
+                                } else if (quality.startsWith("Souvenir")) {
+                                    atomicSouvenir.set(true);
+                                }
+                            }
+                        }
+                    });
+                }
             });
 
+            // The item is created in the unpackAssets() method
             TransientClassId transientClassId = TransientClassId.of(atomicClassId.get());
             TransientItem item = items.get(transientClassId);
 
+            // Set parameters
             item.setClassID(atomicClassId.get());
-
-            String name = atomicName.get();
-            if (name.startsWith("StatTrak™ ")) {
-                name = name.substring(10);
-                item.setStatTrak(true);
+            parseName(atomicName, item);
+            parseType(atomicType, item);
+            item.setNameTag(atomicNameTag.get());
+            item.setExterior(atomicExterior.get());
+            item.setStickers(atomicStickers.get());
+            item.setTradable(atomicTradable.get());
+            item.setStatTrak(atomicStatTrak.get());
+            item.setSouvenir(atomicSouvenir.get());
+            if (atomicItemSet.get() != null) {
+                item.setItemSet(TransientItemSet.builder().name(atomicItemSet.get()).build());
             }
-            if (name.startsWith("★ StatTrak™ ")) {
-                name = name.substring(12);
-                item.setStatTrak(true);
-            }
-            if (name.startsWith("Souvenir ")) {
-                name = name.substring(9);
-                item.setSouvenir(true);
-            }
-            item.setName(name);
-
-            String nametag = atomicNameTag.get();
-            item.setNameTag(nametag);
-
-            Exterior exterior = atomicExterior.get();
-            item.setExterior(exterior);
-
-            List<TransientSticker> stickers = atomicStickers.get();
-            item.setStickers(stickers);
-
-            boolean tradable = atomicTradable.get();
-            item.setTradable(tradable);
-
-            String type = atomicType.get();
-            if (type.startsWith("StatTrak™ ")) {
-                type = type.substring(10);
-                item.setStatTrak(true);
-            }
-            if (type.startsWith("★ StatTrak™ ")) {
-                type = type.substring(12);
-                item.setStatTrak(true);
-            }
-            if (type.startsWith("Souvenir ")) {
-                type = type.substring(9);
-                item.setSouvenir(true);
-            }
-            if (types.get(type) != null) {
-                item.setCategory(types.get(type));
-            } else {
-                TransientItemCategory transientItemCategory = TransientItemCategory.builder().name(type).build();
-                types.put(type, transientItemCategory);
-                item.setCategory(transientItemCategory);
-            }
+            item.setRarity(atomicRarity.get());
 
             items.put(transientClassId, item);
         });
+    }
+
+    private void parseName(AtomicReference<String> atomicName, TransientItem item) {
+        String name = atomicName.get();
+        name = prune(name);
+        item.setName(name);
+    }
+
+    private void parseType(AtomicReference<String> atomicType, TransientItem item) {
+        String type = atomicType.get();
+        type = prune(type);
+        if (types.get(type) != null) {
+            item.setCategory(types.get(type));
+        } else {
+            TransientItemCategory transientItemCategory = TransientItemCategory.builder().name(type).build();
+            types.put(type, transientItemCategory);
+            item.setCategory(transientItemCategory);
+        }
+    }
+
+    private String prune(String type) {
+        if (type.startsWith("StatTrak™ ")) {
+            return type.substring(10);
+        }
+        if (type.startsWith("★ StatTrak™ ")) {
+            return type.substring(12);
+        }
+        if (type.startsWith("Souvenir ")) {
+            return type.substring(9);
+        }
+        return type;
     }
 
     public List<TransientItem> getInventory() {

@@ -1,6 +1,7 @@
 package at.emielregis.backend.data.dtos;
 
 import at.emielregis.backend.data.enums.Exterior;
+import at.emielregis.backend.data.enums.Rarity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -26,6 +27,8 @@ public class TransientItem {
     private TransientItemCategory category;
     private List<TransientSticker> stickers;
     private Exterior exterior;
+    private Rarity rarity;
+    private TransientItemSet itemSet;
 
     public TransientItem increaseAmount() {
         ++amount;

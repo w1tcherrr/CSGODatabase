@@ -6,7 +6,6 @@ import at.emielregis.backend.data.entities.CSGOInventory;
 import at.emielregis.backend.data.enums.HttpResponseMappingStatus;
 import at.emielregis.backend.data.responses.HttpInventoryResponse;
 import at.emielregis.backend.service.BusyWaitingService;
-import at.emielregis.backend.service.CSGOInventoryService;
 import at.emielregis.backend.service.ItemManager;
 import at.emielregis.backend.service.UrlProvider;
 import org.slf4j.Logger;
@@ -23,22 +22,19 @@ import java.util.List;
 public class CSGOInventoryMapper {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    private final CSGOInventoryService csgoInventoryService;
     private final ItemManager itemManager;
     private final UrlProvider urlProvider;
     private final BusyWaitingService busyWaitingService;
 
-    public CSGOInventoryMapper(CSGOInventoryService csgoInventoryService,
-                               ItemManager itemManager,
+    public CSGOInventoryMapper(ItemManager itemManager,
                                UrlProvider urlProvider,
                                BusyWaitingService busyWaitingService) {
-        this.csgoInventoryService = csgoInventoryService;
         this.itemManager = itemManager;
         this.urlProvider = urlProvider;
         this.busyWaitingService = busyWaitingService;
     }
 
-    public HttpResponseMappingStatus getAndSaveInventory(CSGOAccount.CSGOAccountBuilder accountBuilder, String id64, RestTemplate restTemplate) {
+    public HttpResponseMappingStatus getInventory(CSGOAccount.CSGOAccountBuilder accountBuilder, String id64, RestTemplate restTemplate) {
         LOGGER.info("Mapping inventory for user with id: {}", id64);
 
         HttpInventoryResponse httpInventoryResponse;
@@ -52,8 +48,9 @@ public class CSGOInventoryMapper {
                     busyWaitingService.wait(1);
                 }
             } else {
+                LOGGER.error(ex.getMessage());
                 busyWaitingService.wait(5);
-                return HttpResponseMappingStatus.NO_INTERNET;
+                return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
             }
             return HttpResponseMappingStatus.FAILED;
         }
@@ -68,9 +65,15 @@ public class CSGOInventoryMapper {
             HttpInventoryResponse httpInventoryResponse1;
             try {
                 httpInventoryResponse1 = restTemplate.getForObject(urlProvider.getInventoryRequestUriWithStart(id64, httpInventoryResponse.getLastAssetId()), HttpInventoryResponse.class);
-            } catch (RestClientResponseException e) {
-                if (e.getRawStatusCode() == 429) {
-                    busyWaitingService.wait(1);
+            } catch (Exception ex) {
+                if (ex instanceof RestClientResponseException e) {
+                    if (e.getRawStatusCode() == 429) {
+                        busyWaitingService.wait(1);
+                    }
+                } else {
+                    LOGGER.error(ex.getMessage());
+                    busyWaitingService.wait(5);
+                    return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
                 }
                 return HttpResponseMappingStatus.FAILED;
             }
@@ -85,9 +88,15 @@ public class CSGOInventoryMapper {
                 HttpInventoryResponse httpInventoryResponse2;
                 try {
                     httpInventoryResponse2 = restTemplate.getForObject(urlProvider.getInventoryRequestUriWithStart(id64, httpInventoryResponse1.getLastAssetId()), HttpInventoryResponse.class);
-                } catch (RestClientResponseException e) {
-                    if (e.getRawStatusCode() == 429) {
-                        busyWaitingService.wait(1);
+                } catch (Exception ex) {
+                    if (ex instanceof RestClientResponseException e) {
+                        if (e.getRawStatusCode() == 429) {
+                            busyWaitingService.wait(1);
+                        }
+                    } else {
+                        LOGGER.error(ex.getMessage());
+                        busyWaitingService.wait(5);
+                        return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
                     }
                     return HttpResponseMappingStatus.FAILED;
                 }
@@ -102,7 +111,6 @@ public class CSGOInventoryMapper {
 
         CSGOInventory.CSGOInventoryBuilder builder = CSGOInventory.builder().items(itemManager.convert(itemList));
         CSGOInventory inventory = builder.build();
-        csgoInventoryService.save(inventory);
         accountBuilder.csgoInventory(inventory);
 
         return HttpResponseMappingStatus.SUCCESS;

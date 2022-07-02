@@ -26,7 +26,10 @@ public class SteamAccountService {
             initialized = true;
             init();
         }
-        var result = ids.subList(0, (int) l);
+        if (l < 0) {
+            return List.of();
+        }
+        List<String> result = ids.subList(0, (int) l);
         ids = ids.subList((int) l, ids.size());
         return result;
     }
