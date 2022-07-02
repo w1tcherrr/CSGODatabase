@@ -2,6 +2,7 @@ package at.emielregis.backend.runners.httpmapper;
 
 import at.emielregis.backend.data.entities.SteamAccount;
 import at.emielregis.backend.service.BusyWaitingService;
+import at.emielregis.backend.service.PersistentDataService;
 import at.emielregis.backend.service.SteamAccountService;
 import at.emielregis.backend.service.UrlProvider;
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import org.springframework.web.client.RestTemplate;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,45 +26,56 @@ public class SteamGroupMapper {
     private final UrlProvider urlProvider;
     private final RestTemplate restTemplate;
     private final BusyWaitingService busyWaitingService;
+    private final PersistentDataService persistentDataService;
 
-    private boolean initialized = false;
+    private volatile boolean initialized = false;
     private long currentAccounts;
-    private long currentPage;
+    private int amountOfGroups = -1;
+    Map<String, Integer> groupMap = null;
 
     public SteamGroupMapper(SteamAccountService steamAccountService,
                             UrlProvider urlProvider,
                             RestTemplate restTemplate,
-                            BusyWaitingService busyWaitingService) {
+                            BusyWaitingService busyWaitingService,
+                            PersistentDataService persistentDataService) {
         this.steamAccountService = steamAccountService;
         this.urlProvider = urlProvider;
         this.restTemplate = restTemplate;
         this.busyWaitingService = busyWaitingService;
+        this.persistentDataService = persistentDataService;
     }
 
-    public void findAccounts(long amount) {
+    public void findAccounts(List<String> steamGroups, long amount) {
         LOGGER.info("Finding {} accounts", amount);
 
         synchronized (this) {
             if (!initialized) {
                 initialized = true;
                 currentAccounts = steamAccountService.count();
-                currentPage = currentAccounts / 1000;
+                groupMap = persistentDataService.initializeGroups(steamGroups);
+                amountOfGroups = groupMap.keySet().size();
             }
+        }
+
+        while (!initialized) {
+            Thread.onSpinWait();
         }
 
         LOGGER.info("Already have {} accounts", currentAccounts);
 
         while (currentAccounts < amount) {
-            long page;
+            String currentGroup;
+            long currentPage;
 
             synchronized (this) {
-                ++currentPage;
-                page = currentPage;
+                currentGroup = groupMap.keySet().stream().toList().get((int) (amountOfGroups * Math.random()));
+                currentPage = groupMap.get(currentGroup);
+                groupMap.put(currentGroup, groupMap.get(currentGroup) + 1);
             }
 
-            LOGGER.info("Mapping for page {}, current accounts: {}", page, currentAccounts);
+            LOGGER.info("Mapping for group {}, page {}, current accounts: {}", currentGroup, currentPage, currentAccounts);
 
-            String currentUri = urlProvider.getSteamGroupRequest("hentaii", page);
+            String currentUri = urlProvider.getSteamGroupRequest(currentGroup, currentPage);
 
             String response;
             try {
@@ -71,20 +84,21 @@ public class SteamGroupMapper {
                 if (ex instanceof RestClientResponseException e) {
                     if (e.getRawStatusCode() == 429) {
                         synchronized (this) {
-                            --currentPage;
+                            groupMap.put(currentGroup, groupMap.get(currentGroup) - 1);
                         }
                         busyWaitingService.wait(3);
                     }
                 } else {
                     synchronized (this) {
-                        --currentPage;
+                        groupMap.put(currentGroup, groupMap.get(currentGroup) - 1);
                     }
                     busyWaitingService.wait(5);
                 }
                 continue;
             }
 
-            if (response == null) {
+            if (response == null) { // should never happen in practice
+                groupMap.put(currentGroup, groupMap.get(currentGroup) - 1);
                 continue;
             }
 
@@ -105,6 +119,7 @@ public class SteamGroupMapper {
             }
 
             synchronized (this) {
+                persistentDataService.updateGroups(groupMap);
                 currentAccounts = steamAccountService.count();
             }
         }

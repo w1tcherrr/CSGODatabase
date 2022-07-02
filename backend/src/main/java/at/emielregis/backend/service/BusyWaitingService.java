@@ -21,12 +21,7 @@ public class BusyWaitingService {
 
     public void waitForLock() {
         while (isLocked()) {
-            try {
-                LOGGER.info("Still locked due to 429.");
-                Thread.sleep(15000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            Thread.onSpinWait();
         }
     }
 

@@ -54,7 +54,7 @@ public class SteamAccountMapper {
                 SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
                 requestFactory.setProxy(proxy);
                 RestTemplate template = new RestTemplate(requestFactory);
-                steamGroupMapper.findAccounts(MAX_STEAM_ACCOUNTS);
+                steamGroupMapper.findAccounts(getSteamGroups(), MAX_STEAM_ACCOUNTS);
                 mapNextPlayers(template);
                 LOGGER.info("FINISHED EXECUTION OF THREAD");
             }).start();
@@ -65,6 +65,12 @@ public class SteamAccountMapper {
         InputStreamReader r = new InputStreamReader(Objects.requireNonNull(SteamAccountMapper.class.getClassLoader().getResourceAsStream("proxies.txt")));
         BufferedReader reader = new BufferedReader(r);
         return reader.lines().filter(line -> !line.isEmpty()).filter(line -> !line.startsWith("#")).map(String::trim).map(line -> line.split(":")).toList();
+    }
+
+    private static List<String> getSteamGroups() {
+        InputStreamReader r = new InputStreamReader(Objects.requireNonNull(SteamAccountMapper.class.getClassLoader().getResourceAsStream("groups.txt")));
+        BufferedReader reader = new BufferedReader(r);
+        return reader.lines().filter(line -> !line.isEmpty()).filter(line -> !line.startsWith("#")).map(String::trim).toList();
     }
 
     public void mapNextPlayers(RestTemplate template) {
