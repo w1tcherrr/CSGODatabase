@@ -28,20 +28,30 @@ public record Mapper(ItemTypeRepository itemTypeRepository,
                      ItemNameRepository itemNameRepository,
                      ClassIdRepository classIdRepository,
                      ItemSetRepository itemSetRepository) {
-    public synchronized Item mapAndSave(TransientItem transientItem) {
+
+
+    /**
+     * Maps a transient item to an entity item.
+     * Stores the sub-entities into the database already, such as ItemName, Stickers, etc.
+     *
+     * @param transientItem The item to be mapped.
+     * @return The database entity (not stored in the database yet!).
+     */
+    public synchronized Item map(TransientItem transientItem) {
         return Item.builder()
             .classID(mapClassId(transientItem.getClassID()))
             .amount(transientItem.getAmount())
-            .name(mapAndSave(transientItem.getName()))
+            .name(map(transientItem.getName()))
             .nameTag(transientItem.getNameTag())
             .tradable(transientItem.isTradable())
             .statTrak(transientItem.isStatTrak())
             .souvenir(transientItem.isSouvenir())
-            .category(mapAndSave(transientItem.getCategory()))
-            .stickers(mapAndSave(transientItem.getStickers()))
+            .category(map(transientItem.getCategory()))
+            .stickers(map(transientItem.getStickers()))
             .exterior(transientItem.getExterior())
-            .itemSet(mapAndSave(transientItem.getItemSet()))
+            .itemSet(map(transientItem.getItemSet()))
             .rarity(transientItem.getRarity())
+            .storageUnitAmount(transientItem.getAmountStorageUnit())
             .build();
     }
 
@@ -53,7 +63,7 @@ public record Mapper(ItemTypeRepository itemTypeRepository,
         return classIdRepository.save(id);
     }
 
-    private ItemCategory mapAndSave(TransientItemCategory type) {
+    private ItemCategory map(TransientItemCategory type) {
         if (itemTypeRepository.existsByName(type.getName())) {
             return itemTypeRepository.getByName(type.getName());
         }
@@ -61,7 +71,7 @@ public record Mapper(ItemTypeRepository itemTypeRepository,
         return itemCategoryRepository.save(category);
     }
 
-    private List<Sticker> mapAndSave(List<TransientSticker> stickers) {
+    private List<Sticker> map(List<TransientSticker> stickers) {
         if (stickers == null) {
             return new ArrayList<>();
         }
@@ -77,7 +87,7 @@ public record Mapper(ItemTypeRepository itemTypeRepository,
         return stickerList;
     }
 
-    private ItemName mapAndSave(String name) {
+    private ItemName map(String name) {
         if (itemNameRepository.existsByName(name)) {
             return itemNameRepository.getByName(name);
         }
@@ -85,7 +95,7 @@ public record Mapper(ItemTypeRepository itemTypeRepository,
         return itemNameRepository.save(name1);
     }
 
-    private ItemSet mapAndSave(TransientItemSet itemSet) {
+    private ItemSet map(TransientItemSet itemSet) {
         if (itemSet == null) {
             return null;
         }

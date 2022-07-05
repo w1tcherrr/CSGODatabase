@@ -1,7 +1,9 @@
 package at.emielregis.backend.runners.httpmapper;
 
 import at.emielregis.backend.data.entities.SteamAccount;
+import at.emielregis.backend.data.entities.SteamGroup;
 import at.emielregis.backend.service.BusyWaitingService;
+import at.emielregis.backend.service.CSGOAccountService;
 import at.emielregis.backend.service.PersistentDataService;
 import at.emielregis.backend.service.SteamAccountService;
 import at.emielregis.backend.service.UrlProvider;
@@ -11,10 +13,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,93 +27,102 @@ public class SteamGroupMapper {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private final SteamAccountService steamAccountService;
+    private final CSGOAccountService csgoAccountService;
     private final UrlProvider urlProvider;
     private final RestTemplate restTemplate;
     private final BusyWaitingService busyWaitingService;
     private final PersistentDataService persistentDataService;
 
+
     private volatile boolean initialized = false;
     private long currentAccounts;
     private int amountOfGroups = -1;
-    Map<String, Integer> groupMap = null;
+    List<SteamGroup> groups = null;
 
     public SteamGroupMapper(SteamAccountService steamAccountService,
-                            UrlProvider urlProvider,
+                            CSGOAccountService csgoAccountService, UrlProvider urlProvider,
                             RestTemplate restTemplate,
                             BusyWaitingService busyWaitingService,
                             PersistentDataService persistentDataService) {
         this.steamAccountService = steamAccountService;
+        this.csgoAccountService = csgoAccountService;
         this.urlProvider = urlProvider;
         this.restTemplate = restTemplate;
         this.busyWaitingService = busyWaitingService;
         this.persistentDataService = persistentDataService;
     }
 
-    public void findAccounts(List<String> steamGroups, long amount) {
-        LOGGER.info("Finding {} accounts", amount);
-
+    /**
+     * Finds new accounts whenever the CSGOAccountMapper does not have enough accounts left to process.
+     */
+    public void findAccounts() {
+        // only initialize once
         synchronized (this) {
             if (!initialized) {
                 initialized = true;
                 currentAccounts = steamAccountService.count();
-                groupMap = persistentDataService.initializeGroups(steamGroups);
-                amountOfGroups = groupMap.keySet().size();
+                groups = persistentDataService.initializeGroups(getGroups());
+                amountOfGroups = groups.size();
             }
         }
 
+        // wait with other threads while one initializes the mapper
         while (!initialized) {
             Thread.onSpinWait();
         }
 
         LOGGER.info("Already have {} accounts", currentAccounts);
 
-        while (currentAccounts < amount) {
+        // 10.000 buffer accounts - whenever there are less than 10.000 accounts left new accounts are searched for.
+        while (currentAccounts < (csgoAccountService.count() + 25_000)) {
             String currentGroup;
             long currentPage;
 
+            // get the group and page to process for this call
             synchronized (this) {
-                currentGroup = groupMap.keySet().stream().toList().get((int) (amountOfGroups * Math.random()));
-                currentPage = groupMap.get(currentGroup);
-                groupMap.put(currentGroup, groupMap.get(currentGroup) + 1);
+                currentGroup = groups.get((int) (amountOfGroups * Math.random())).getName();
+                currentPage = persistentDataService.getNextPage(currentGroup);
             }
 
             LOGGER.info("Mapping for group {}, page {}, current accounts: {}", currentGroup, currentPage, currentAccounts);
 
+            // get the uri
             String currentUri = urlProvider.getSteamGroupRequest(currentGroup, currentPage);
 
+            // get the response as a string
             String response;
             try {
                 response = restTemplate.getForObject(currentUri, String.class);
             } catch (Exception ex) {
+                synchronized (this) { // if the call fails we free the page again as it wasn't properly mapped
+                    persistentDataService.freePage(currentGroup, currentPage);
+                }
                 if (ex instanceof RestClientResponseException e) {
                     if (e.getRawStatusCode() == 429) {
-                        synchronized (this) {
-                            groupMap.put(currentGroup, groupMap.get(currentGroup) - 1);
-                        }
                         LOGGER.error("429 - Too many requests");
-                        busyWaitingService.wait(3);
+                        busyWaitingService.wait(10);
                     }
                 } else {
-                    synchronized (this) {
-                        groupMap.put(currentGroup, groupMap.get(currentGroup) - 1);
-                    }
                     LOGGER.error(ex.getMessage());
                     busyWaitingService.wait(5);
                 }
                 continue;
             }
 
-            if (response == null) { // should never happen in practice
-                groupMap.put(currentGroup, groupMap.get(currentGroup) - 1);
+            if (response == null) { // should doesn't happen in practice
+                persistentDataService.freePage(currentGroup, currentPage);
                 continue;
             }
 
+            // as the request is a string all the ids are simply read using a regex matcher
             Matcher matcher = Pattern.compile("<steamID64>(?<id>\\d{17})</steamID64>").matcher(response);
             List<SteamAccount> accountList = new ArrayList<>();
 
             synchronized (this) {
+                boolean hasAccounts = false;
                 while (matcher.find()) {
                     String current = matcher.group("id");
+                    hasAccounts = true;
                     if (!steamAccountService.containsById64(current)) {
                         accountList.add(SteamAccount.builder()
                             .id64(current)
@@ -117,13 +130,32 @@ public class SteamGroupMapper {
                         );
                     }
                 }
+
+                // if the response does not contain any accounts the page number was too high for the groups user count
+                if (!hasAccounts) {
+                    persistentDataService.lockGroup(currentGroup);
+                    groups = persistentDataService.getUnlockedGroups();
+                    amountOfGroups = groups.size();
+                }
+
                 steamAccountService.saveAll(accountList);
             }
 
+            // update the account number
             synchronized (this) {
-                persistentDataService.updateGroups(groupMap);
                 currentAccounts = steamAccountService.count();
             }
         }
+    }
+
+    /**
+     * Returns the names of the steam groups.
+     *
+     * @return List of steam group names.
+     */
+    private List<String> getGroups() {
+        InputStreamReader r = new InputStreamReader(Objects.requireNonNull(CSGOAccountMapper.class.getClassLoader().getResourceAsStream("groups.txt")));
+        BufferedReader reader = new BufferedReader(r);
+        return reader.lines().filter(line -> !line.isEmpty()).filter(line -> !line.startsWith("#")).map(String::trim).toList();
     }
 }

@@ -16,6 +16,7 @@ import javax.persistence.Id;
 import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import java.util.List;
+import java.util.Objects;
 
 @Entity
 @Getter
@@ -34,6 +35,9 @@ public class Item {
 
     @Column(nullable = false, updatable = false)
     private int amount;
+
+    @Column(updatable = false)
+    private Integer storageUnitAmount;
 
     @Column(updatable = false)
     private String nameTag;
@@ -64,4 +68,17 @@ public class Item {
 
     @ManyToOne
     private ItemSet itemSet;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Item item = (Item) o;
+        return Objects.equals(id, item.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
 }

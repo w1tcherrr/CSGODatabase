@@ -6,12 +6,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import java.util.Map;
+import javax.persistence.OneToMany;
+import java.util.List;
 
 @Builder
 @AllArgsConstructor
@@ -25,6 +25,6 @@ public class PersistentDataStore {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ElementCollection()
-    private Map<String, Integer> steamGroupPages;
+    @OneToMany
+    private List<SteamGroup> steamGroups;
 }

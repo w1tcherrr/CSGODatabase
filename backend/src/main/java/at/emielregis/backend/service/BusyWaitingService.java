@@ -13,9 +13,14 @@ public class BusyWaitingService {
 
     private LocalDateTime locked_until = LocalDateTime.MIN;
 
-    public void wait(int i) {
-        LOGGER.info("Locking for " + i + " minutes.");
-        locked_until = LocalDateTime.now().plusMinutes(i);
+    /**
+     * Busy waits for the specified amount of time.
+     *
+     * @param minutes The amount of minutes to wait.
+     */
+    public void wait(int minutes) {
+        LOGGER.info("Locking for " + minutes + " minutes.");
+        locked_until = LocalDateTime.now().plusMinutes(minutes);
         waitForLock();
     }
 

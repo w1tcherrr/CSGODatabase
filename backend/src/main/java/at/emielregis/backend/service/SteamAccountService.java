@@ -5,6 +5,7 @@ import at.emielregis.backend.repository.SteamAccountRepository;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Component
@@ -17,25 +18,34 @@ public class SteamAccountService {
         this.steamAccountRepository = steamAccountRepository;
     }
 
-    public void init() {
-        ids = steamAccountRepository.findAllUnmappedIDs();
+    public synchronized void init() {
+        ids = new ArrayList<>(steamAccountRepository.findAllUnmappedIDs());
+        Collections.shuffle(ids); // shuffle once so random accounts are picked and not only those found first
     }
 
-    public synchronized List<String> findNextIds(long l) {
-        if (!initialized) {
+    /**
+     * Finds the next amount ids that have not been mapped to a CSGOAccount yet.
+     *
+     * @param amount The amount of accounts.
+     * @return The List of account id64s.
+     */
+    public synchronized List<String> findNextIds(long amount) {
+        if (!initialized) { // initialize on the first call
             initialized = true;
             init();
         }
-        if (l < 0) {
+        if (ids.size() < 5_000) { // if not enough ids are left fetch all new ids
+            init();
+        }
+        if (amount < 0) {
             return List.of();
         }
-        List<String> result = ids.subList(0, (int) l);
-        ids = ids.subList((int) l, ids.size());
+        if (amount > ids.size()) { // this means that the groups do not contain enough accounts. In that case the program is terminated early.
+            throw new IllegalStateException("There are not enough ids left to supply the mapper. Your Steam-Account to CSGO-Account Ratio is wrong.");
+        }
+        List<String> result = ids.subList(0, (int) amount);
+        ids = ids.subList((int) amount, ids.size());
         return result;
-    }
-
-    public long unmappedCount() {
-        return steamAccountRepository.unmappedCount();
     }
 
     public long count() {

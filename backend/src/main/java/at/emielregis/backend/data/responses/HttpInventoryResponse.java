@@ -31,6 +31,13 @@ public class HttpInventoryResponse {
     @JsonProperty("last_assetid")
     private String lastAssetId;
 
+    /**
+     * Unpacks the class ids of the response. A class id describes the class of the item - all items with the same class
+     * id have the same base properties such as exterior, collection, name. Here the amount of items of each type is counted
+     * so equal items are grouped.
+     *
+     * @param assets The map of asset fields from the JSON response.
+     */
     @JsonProperty("assets")
     private void unpackAssets(List<Map<String, Object>> assets) {
         assets.forEach(map -> map.forEach((key, value) -> {
@@ -46,6 +53,12 @@ public class HttpInventoryResponse {
         );
     }
 
+    /**
+     * Unpacks the detailed descriptions of all the items in the JSON response and creates TransientItem instances
+     * for each unique class id.
+     *
+     * @param descriptions The map of descriptions from the JSON response.
+     */
     @JsonProperty("descriptions")
     private void unpackNested(List<Map<String, Object>> descriptions) {
         descriptions.forEach(map -> {
@@ -59,6 +72,7 @@ public class HttpInventoryResponse {
             final AtomicReference<Exterior> atomicExterior = new AtomicReference<>();
             final AtomicReference<String> atomicItemSet = new AtomicReference<>();
             final AtomicReference<Rarity> atomicRarity = new AtomicReference<>();
+            final AtomicReference<Integer> atomicStorageUnitAmount = new AtomicReference<>();
             final AtomicReference<List<TransientSticker>> atomicStickers = new AtomicReference<>();
             map.forEach((key, value) -> {
                 if (key.equals("name")) {
@@ -83,6 +97,9 @@ public class HttpInventoryResponse {
                         if (key1.equals("value")) {
                             String value2 = (String) value1;
                             if (value2.contains("sticker_info")) {
+
+                                // the sticker data is only sent as html for displaying it so I have to manually
+                                // extract the sticker names from the html
                                 List<TransientSticker> stickers = new ArrayList<>();
                                 if (value2.contains("<br>Sticker:")) {
                                     value2 = value2.substring(value2.indexOf("<br>Sticker:")).substring(4);
@@ -96,6 +113,9 @@ public class HttpInventoryResponse {
                                     atomicStickers.set(stickers);
                                 }
                             }
+                            if (value2.startsWith("Number of Items: ")) {
+                                atomicStorageUnitAmount.set(Integer.parseInt(value2.substring(17).trim()));
+                            }
                         }
                     }));
                 }
@@ -104,7 +124,7 @@ public class HttpInventoryResponse {
                     maps.forEach(map1 -> {
                         String category = (String) map1.get("category");
                         switch (category) {
-                            case "ItemSet" -> atomicItemSet.set((String) map1.get("localized_tag_name"));
+                            case "ItemSet", "StickerCapsule", "PatchCapsule" -> atomicItemSet.set((String) map1.get("localized_tag_name"));
                             case "Rarity" -> atomicRarity.set(Rarity.of((String) map1.get("localized_tag_name")));
                             case "Exterior" -> atomicExterior.set(Exterior.of((String) map1.get("localized_tag_name")));
                             case "Quality" -> {
@@ -134,21 +154,37 @@ public class HttpInventoryResponse {
             item.setTradable(atomicTradable.get());
             item.setStatTrak(atomicStatTrak.get());
             item.setSouvenir(atomicSouvenir.get());
+            item.setRarity(atomicRarity.get());
+            item.setAmountStorageUnit(atomicStorageUnitAmount.get());
+
+            // not all items have an item set
             if (atomicItemSet.get() != null) {
                 item.setItemSet(TransientItemSet.builder().name(atomicItemSet.get()).build());
             }
-            item.setRarity(atomicRarity.get());
+
 
             items.put(transientClassId, item);
         });
     }
 
+    /**
+     * Parses the name of the item.
+     *
+     * @param atomicName The atomic name.
+     * @param item The item for which to set the name.
+     */
     private void parseName(AtomicReference<String> atomicName, TransientItem item) {
         String name = atomicName.get();
         name = prune(name);
         item.setName(name);
     }
 
+    /**
+     * Parses the type of the item.
+     *
+     * @param atomicType The atomic type.
+     * @param item The item for which to set the type.
+     */
     private void parseType(AtomicReference<String> atomicType, TransientItem item) {
         String type = atomicType.get();
         type = prune(type);
@@ -161,27 +197,49 @@ public class HttpInventoryResponse {
         }
     }
 
-    private String prune(String type) {
-        if (type.startsWith("StatTrak™ ")) {
-            return type.substring(10);
+    /**
+     * Prunes the string of StatTrak and Souvenir prefixes.
+     * If there is nothing the prune the original string is returned.
+     *
+     * @param string The string to be pruned.
+     * @return The pruned string.
+     */
+    private String prune(String string) {
+        if (string.startsWith("StatTrak™ ")) {
+            return string.substring(10);
         }
-        if (type.startsWith("★ StatTrak™ ")) {
-            return type.substring(12);
+        if (string.startsWith("★ StatTrak™ ")) {
+            return string.substring(12);
         }
-        if (type.startsWith("Souvenir ")) {
-            return type.substring(9);
+        if (string.startsWith("Souvenir ")) {
+            return string.substring(9);
         }
-        return type;
+        return string;
     }
 
-    public List<TransientItem> getInventory() {
+    /**
+     * Returns the transient items of the inventory requests.
+     *
+     * @return The transient items.
+     */
+    public List<TransientItem> getTransientItems() {
         return items.values().stream().toList();
     }
 
+    /**
+     * Returns whether there are more items in the users inventory after this request.
+     *
+     * @return true if there more items, false otherwise.
+     */
     public boolean hasMoreItems() {
         return hasMoreItems != null && hasMoreItems == 1;
     }
 
+    /**
+     * Returns the asset id of the last item of this request.
+     *
+     * @return The last asset id if one exists, null otherwise.
+     */
     public String getLastAssetId() {
         return lastAssetId;
     }

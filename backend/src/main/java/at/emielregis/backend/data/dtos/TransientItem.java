@@ -19,6 +19,7 @@ import java.util.Objects;
 public class TransientItem {
     private String classID;
     private int amount = 0;
+    private Integer amountStorageUnit;
     private String name;
     private String nameTag;
     private boolean tradable;
