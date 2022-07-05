@@ -2,6 +2,7 @@ package at.emielregis.backend.repository;
 
 import at.emielregis.backend.data.entities.Item;
 import at.emielregis.backend.data.entities.ItemName;
+import at.emielregis.backend.data.entities.ItemSet;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -29,4 +30,19 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
         "SELECT i from Item i where i.name = :name"
     )
     List<Item> getItemsForName(@Param("name") ItemName name);
+
+    @Query(
+        "SELECT sum(i.amount) from Item i"
+    )
+    long itemCountNoStorageUnits();
+
+    @Query(
+        "SELECT sum(i.storageUnitAmount * i.amount) from Item i where i.storageUnitAmount IS NOT NULL"
+    )
+    long itemCountOnlyStorageUnits();
+
+    @Query(
+        "SELECT distinct i.name from Item i where i.itemSet = :set"
+    )
+    List<ItemName> getAllNamesForSet(@Param("set") ItemSet set);
 }
