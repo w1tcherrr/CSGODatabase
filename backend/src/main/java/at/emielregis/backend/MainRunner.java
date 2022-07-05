@@ -15,7 +15,7 @@ public record MainRunner(DataWriter dataWriter, CSGOAccountMapper csgoAccountMap
      */
     @EventListener(ApplicationReadyEvent.class)
     public void run() {
-        //dataWriter.write();
+        dataWriter.write();
         csgoAccountMapper.start();
     }
 }

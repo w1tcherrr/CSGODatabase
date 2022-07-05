@@ -17,4 +17,8 @@ public class ItemNameService {
     public List<ItemName> getSearch(String filter) {
         return itemNameRepository.getSearch(filter);
     }
+
+    public long count() {
+        return itemNameRepository.count();
+    }
 }

@@ -5,9 +5,12 @@ import at.emielregis.backend.data.entities.ItemName;
 import at.emielregis.backend.data.entities.ItemSet;
 import at.emielregis.backend.data.enums.Exterior;
 import at.emielregis.backend.service.CSGOAccountService;
+import at.emielregis.backend.service.ItemCategoryService;
 import at.emielregis.backend.service.ItemNameService;
 import at.emielregis.backend.service.ItemService;
 import at.emielregis.backend.service.ItemSetService;
+import at.emielregis.backend.service.SteamAccountService;
+import at.emielregis.backend.service.StickerService;
 import org.apache.catalina.manager.JspHelper;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -40,18 +43,28 @@ import java.util.stream.Collectors;
 public class DataWriter {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    private final CSGOAccountService CSGOAccountService;
     private final ItemService itemService;
     private final ItemSetService itemSetService;
     private final ItemNameService itemNameService;
+    private final CSGOAccountService csgoAccountService;
+    private final SteamAccountService steamAccountService;
+    private final StickerService stickerService;
+    private final ItemCategoryService itemCategoryService;
 
-    public DataWriter(CSGOAccountService CSGOAccountService,
-                      ItemService itemService,
-                      ItemSetService itemSetService, ItemNameService itemNameService) {
-        this.CSGOAccountService = CSGOAccountService;
+    public DataWriter(ItemService itemService,
+                      ItemSetService itemSetService,
+                      ItemNameService itemNameService,
+                      CSGOAccountService csgoAccountService,
+                      SteamAccountService steamAccountService,
+                      StickerService stickerService,
+                      ItemCategoryService itemCategoryService) {
         this.itemService = itemService;
         this.itemSetService = itemSetService;
         this.itemNameService = itemNameService;
+        this.csgoAccountService = csgoAccountService;
+        this.steamAccountService = steamAccountService;
+        this.stickerService = stickerService;
+        this.itemCategoryService = itemCategoryService;
     }
 
     public void write() {
@@ -90,6 +103,11 @@ public class DataWriter {
 
         emptyLine(miscellaneousData);
 
+        addLine(miscellaneousData, "Total Steam-Accounts queried:", "" + formatNumber(steamAccountService.count()));
+        addLine(miscellaneousData, "Total CSGO-Accounts queried:", "" + formatNumber(csgoAccountService.count()));
+        addLine(miscellaneousData, "Total Accounts with inventories:", "" + formatNumber(csgoAccountService.countWithInventory()));
+        emptyLine(miscellaneousData);
+
         addLine(miscellaneousData, "Total Items (no Storage Units):", "" + formatNumber(noStorageUnitCount));
         addLine(miscellaneousData, "Total Items in Storage Units:", "" + formatNumber(onlyStorageUnitCount));
         addLine(miscellaneousData, "Total Items:", "" + formatNumber(totalCount));
@@ -99,8 +117,16 @@ public class DataWriter {
         addLine(miscellaneousData, "Most full Storage Units in one inventory:", "" + formatNumber(itemService.getHighestFullStorageUnitCount()));
         addLine(miscellaneousData, "Most items in one inventory:", "" + formatNumber(itemService.getHighestSingleInventoryCount()));
         addLine(miscellaneousData, "Least items in one inventory:", "" + formatNumber(itemService.getLowestSingleInventoryCount()));
-        addLine(miscellaneousData, "Average items per inventory:", "" + formatNumber(totalCount / CSGOAccountService.countWithInventory()));
+        addLine(miscellaneousData, "Average items per inventory:", "" + formatNumber(totalCount / csgoAccountService.countWithInventory()));
         emptyLine(miscellaneousData);
+
+        addLine(miscellaneousData, "Total amount of item sets:", "" + itemSetService.count());
+        addLine(miscellaneousData, "Total amount of item categories:", "" + itemCategoryService.count());
+        addLine(miscellaneousData, "Total amount of different items:", "" + itemNameService.count());
+        addLine(miscellaneousData, "Total amount of different stickers:", "" + stickerService.uniqueStickerCount());
+
+        emptyLine(miscellaneousData);
+        addLine(miscellaneousData, "Total applied stickers:", "" + stickerService.appliedStickerCount());
 
         createSheet(workBook, "Miscellaneous", miscellaneousData);
         writeWorkBookToFile("Miscellaneous_Data.xlsx", workBook);

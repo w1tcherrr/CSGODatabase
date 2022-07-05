@@ -35,4 +35,8 @@ public record ItemSetService(ItemSetRepository itemSetRepository) {
     public boolean hasSouvenirForItemSet(ItemSet set) {
         return itemSetRepository.hasSouvenirForItemSet(set);
     }
+
+    public long count() {
+        return itemSetRepository.count();
+    }
 }
