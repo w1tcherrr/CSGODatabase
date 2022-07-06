@@ -7,11 +7,11 @@ import at.emielregis.backend.data.dtos.TransientItemSet;
 import at.emielregis.backend.data.dtos.TransientSticker;
 import at.emielregis.backend.data.enums.Exterior;
 import at.emielregis.backend.data.enums.Rarity;
+import at.emielregis.backend.data.enums.StickerType;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,19 +97,61 @@ public class HttpInventoryResponse {
                         if (key1.equals("value")) {
                             String value2 = (String) value1;
                             if (value2.contains("sticker_info")) {
+                                int amountOfStickers = value2.split("<img").length - 1;
+
 
                                 // the sticker data is only sent as html for displaying it so I have to manually
                                 // extract the sticker names from the html
                                 List<TransientSticker> stickers = new ArrayList<>();
                                 if (value2.contains("<br>Sticker:")) {
-                                    value2 = value2.substring(value2.indexOf("<br>Sticker:")).substring(4);
+                                    value2 = value2.substring(value2.indexOf("<br>Sticker:")).substring(12);
                                     value2 = value2.substring(0, value2.indexOf("</center>"));
-                                    Arrays.stream(value2.split(",")).forEach(
-                                        stickerName -> {
-                                            stickerName = stickerName.trim();
-                                            stickers.add(TransientSticker.builder().name(stickerName).build());
+                                    String[] split = value2.split(",");
+                                    for (int i = 0; i < split.length; i++) {
+                                        String stickerName = split[i];
+                                        stickerName = stickerName.trim();
+
+                                        // some stickers include "," character
+                                        if (stickerName.endsWith("(Holo") ||
+                                            stickerName.endsWith("(Glitter") ||
+                                            stickerName.endsWith("(Gold") ||
+                                            stickerName.endsWith("Don't Worry") ||
+                                            stickerName.endsWith("Hi") ||
+                                            stickerName.endsWith("Run CT")) {
+                                            if (i < split.length - 1) {
+                                                if (!stickerName.endsWith("Don't Worry") ||
+                                                    (stickerName.endsWith("Don't Worry") && split[i + 1].endsWith("I'm Pro"))) {
+                                                    stickerName += split[i + 1];
+                                                    stickerName = stickerName.trim();
+                                                    ++i; // skip next iteration
+                                                }
+                                            } else {
+                                                if (!stickerName.endsWith("Don't Worry")) {
+                                                    throw new IllegalStateException("Error reading stickers: " + value1);
+                                                }
+                                            }
                                         }
-                                    );
+
+                                        // this sticker has two "," characters
+                                        if (stickerName.endsWith("Rock")) {
+                                            if (i < split.length - 2) {
+                                                if (split[i + 1].equals(" Paper")) {
+                                                    stickerName = stickerName + split[i + 1] + split[i + 2];
+                                                    stickerName = stickerName.trim();
+                                                    i += 2; // skip next 2 iterations
+                                                }
+                                            } else {
+                                                throw new IllegalStateException("Error reading stickers: " + value1);
+                                            }
+                                        }
+
+                                        stickers.add(TransientSticker.builder().name(stickerName).stickerType(StickerType.ofName(stickerName)).build());
+                                    }
+
+                                    if (stickers.size() != amountOfStickers) {
+                                        throw new IllegalStateException("Amount of stickers does not match for string: " + value1);
+                                    }
+
                                     atomicStickers.set(stickers);
                                 }
                             }
@@ -171,7 +213,7 @@ public class HttpInventoryResponse {
      * Parses the name of the item.
      *
      * @param atomicName The atomic name.
-     * @param item The item for which to set the name.
+     * @param item       The item for which to set the name.
      */
     private void parseName(AtomicReference<String> atomicName, TransientItem item) {
         String name = atomicName.get();
@@ -183,7 +225,7 @@ public class HttpInventoryResponse {
      * Parses the type of the item.
      *
      * @param atomicType The atomic type.
-     * @param item The item for which to set the type.
+     * @param item       The item for which to set the type.
      */
     private void parseType(AtomicReference<String> atomicType, TransientItem item) {
         String type = atomicType.get();

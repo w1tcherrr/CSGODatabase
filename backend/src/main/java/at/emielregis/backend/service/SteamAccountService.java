@@ -2,14 +2,19 @@ package at.emielregis.backend.service;
 
 import at.emielregis.backend.data.entities.SteamAccount;
 import at.emielregis.backend.repository.SteamAccountRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 @Component
 public class SteamAccountService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
     private final SteamAccountRepository steamAccountRepository;
     private boolean initialized = false;
     private List<String> ids = new ArrayList<>();
@@ -49,6 +54,7 @@ public class SteamAccountService {
     }
 
     public long count() {
+        LOGGER.info("SteamAccountService#count()");
         return steamAccountRepository.count();
     }
 

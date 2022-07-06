@@ -1,5 +1,6 @@
 package at.emielregis.backend.data.dtos;
 
+import at.emielregis.backend.data.enums.StickerType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -13,4 +14,5 @@ import lombok.Setter;
 @Setter
 public class TransientSticker {
     private String name;
+    private StickerType stickerType;
 }

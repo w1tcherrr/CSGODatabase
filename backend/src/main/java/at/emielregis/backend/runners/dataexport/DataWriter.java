@@ -50,6 +50,7 @@ public class DataWriter {
     private final SteamAccountService steamAccountService;
     private final StickerService stickerService;
     private final ItemCategoryService itemCategoryService;
+    private final List<Thread> threads = new ArrayList<>();
 
     public DataWriter(ItemService itemService,
                       ItemSetService itemSetService,
@@ -67,20 +68,40 @@ public class DataWriter {
         this.itemCategoryService = itemCategoryService;
     }
 
-    public void write() {
+    public void write() throws InterruptedException {
         LOGGER.info("Writing Data now");
 
         // writes all raw data into a single file
-        //writeAll();
+        runThread(this::writeAll);
 
         // writes some miscellaneous data
-        writeMiscellaneous();
+        runThread(this::writeMiscellaneous);
 
         // writes data for all majors
-        writeMajors();
+        runThread(this::writeMajors);
 
         // writes data for all normal item collections
-        writeCollections();
+        runThread(this::writeCollections);
+
+        // writes cases
+        runThread(this::writeCases);
+
+        // writes all containers
+        runThread(this::writeContainers);
+
+        awaitAll();
+    }
+
+    private void runThread(Runnable r) {
+        Thread t = new Thread(r);
+        threads.add(t);
+        t.start();
+    }
+
+    private void awaitAll() throws InterruptedException {
+        for (Thread t : threads) {
+            t.join();
+        }
     }
 
     private void writeAll() {
@@ -105,7 +126,7 @@ public class DataWriter {
 
         addLine(miscellaneousData, "Total Steam-Accounts queried:", "" + formatNumber(steamAccountService.count()));
         addLine(miscellaneousData, "Total CSGO-Accounts queried:", "" + formatNumber(csgoAccountService.count()));
-        addLine(miscellaneousData, "Total Accounts with inventories:", "" + formatNumber(csgoAccountService.countWithInventory()));
+        addLine(miscellaneousData, "Total CSGO-Accounts with inventories queried:", "" + formatNumber(csgoAccountService.countWithInventory()));
         emptyLine(miscellaneousData);
 
         addLine(miscellaneousData, "Total Items (no Storage Units):", "" + formatNumber(noStorageUnitCount));
@@ -120,13 +141,14 @@ public class DataWriter {
         addLine(miscellaneousData, "Average items per inventory:", "" + formatNumber(totalCount / csgoAccountService.countWithInventory()));
         emptyLine(miscellaneousData);
 
-        addLine(miscellaneousData, "Total amount of item sets:", "" + itemSetService.count());
-        addLine(miscellaneousData, "Total amount of item categories:", "" + itemCategoryService.count());
-        addLine(miscellaneousData, "Total amount of different items:", "" + itemNameService.count());
-        addLine(miscellaneousData, "Total amount of different stickers:", "" + stickerService.uniqueStickerCount());
+        addLine(miscellaneousData, "Total amount of item sets:", "" + formatNumber(itemSetService.count()));
+        addLine(miscellaneousData, "Total amount of item categories:", "" + formatNumber(itemCategoryService.count()));
+        addLine(miscellaneousData, "Total amount of different items:", "" + formatNumber(itemNameService.count()));
+        addLine(miscellaneousData, "Total amount of different non-applied stickers:", "" + formatNumber(stickerService.countNonApplied()));
+        addLine(miscellaneousData, "Total amount of different applied stickers:", "" + formatNumber(stickerService.count()));
 
         emptyLine(miscellaneousData);
-        addLine(miscellaneousData, "Total applied stickers:", "" + stickerService.appliedStickerCount());
+        addLine(miscellaneousData, "Total applied stickers:", "" + formatNumber(stickerService.appliedStickerCount()));
 
         createSheet(workBook, "Miscellaneous", miscellaneousData);
         writeWorkBookToFile("Miscellaneous_Data.xlsx", workBook);
@@ -278,6 +300,22 @@ public class DataWriter {
         return lines;
     }
 
+    private void writeCases() {
+        Workbook workBook = new XSSFWorkbook();
+        List<ItemSet> collectionSets = itemSetService.search("Mirage", "Dust II", "Ancient", "Inferno",
+            "Overpass", "Nuke", "Vertigo", "Cache", "Cobblestone", "Train", "Souvenir");
+        collectionSets.forEach(set -> createSheet(workBook, set.getName(), createLinesForItemSet(set)));
+        writeWorkBookToFile("Cases.xlsx", workBook);
+    }
+
+    private void writeContainers() {
+        Workbook workBook = new XSSFWorkbook();
+        List<ItemSet> collectionSets = itemSetService.search("Mirage", "Dust II", "Ancient", "Inferno",
+            "Overpass", "Nuke", "Vertigo", "Cache", "Cobblestone", "Train", "Souvenir");
+        collectionSets.forEach(set -> createSheet(workBook, set.getName(), createLinesForItemSet(set)));
+        writeWorkBookToFile("Containers.xlsx", workBook);
+    }
+
     private void createSheet(Workbook workbook, String title, List<String[]> lines) {
         Sheet sheet = workbook.createSheet(title.replaceAll("[:/\\\\?*,.\\[\\]]", "")); // remove forbidden characters
 
@@ -347,7 +385,7 @@ public class DataWriter {
         LOGGER.info("Created sheet " + title + " in workbook.");
     }
 
-    private void writeWorkBookToFile(String fileName, Workbook workbook) {
+    private synchronized void writeWorkBookToFile(String fileName, Workbook workbook) {
         LOGGER.info("Writing file " + fileName);
 
         String directoryName = "C:\\Users\\mitch\\Documents\\GitHub\\CSGODatabaseSpring\\output";

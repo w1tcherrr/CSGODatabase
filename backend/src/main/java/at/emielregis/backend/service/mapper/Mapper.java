@@ -29,7 +29,6 @@ public record Mapper(ItemTypeRepository itemTypeRepository,
                      ClassIdRepository classIdRepository,
                      ItemSetRepository itemSetRepository) {
 
-
     /**
      * Maps a transient item to an entity item.
      * Stores the sub-entities into the database already, such as ItemName, Stickers, etc.
@@ -80,7 +79,7 @@ public record Mapper(ItemTypeRepository itemTypeRepository,
             if (stickerRepository.existsByName(sticker.getName())) {
                 stickerList.add(stickerRepository.getByName(sticker.getName()));
             } else {
-                Sticker sticker1 = Sticker.builder().name(sticker.getName()).build();
+                Sticker sticker1 = Sticker.builder().name(sticker.getName()).stickerType(sticker.getStickerType()).build();
                 stickerList.add(stickerRepository.save(sticker1));
             }
         }

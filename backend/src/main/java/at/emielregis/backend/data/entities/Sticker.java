@@ -1,5 +1,6 @@
 package at.emielregis.backend.data.entities;
 
+import at.emielregis.backend.data.enums.StickerType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -26,6 +27,9 @@ public class Sticker {
 
     @Column(unique = true, updatable = false, nullable = false)
     private String name;
+
+    @Column(updatable = false, nullable = false)
+    private StickerType stickerType;
 
     @Override
     public String toString() {

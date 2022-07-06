@@ -45,4 +45,9 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
         "SELECT distinct i.name from Item i where i.itemSet = :set"
     )
     List<ItemName> getAllNamesForSet(@Param("set") ItemSet set);
+
+    @Query(
+            "SELECT i from Item i join i.stickers s where s.name like 'Sticker:%'"
+    )
+    List<Item> getAllItemsWithInvalidStickers();
 }

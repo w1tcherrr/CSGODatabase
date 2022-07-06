@@ -66,42 +66,53 @@ public class ItemService {
     }
 
     public long itemCountNoStorageUnits() {
+        LOGGER.info("ItemService#itemCountNoStorageUnits()");
         return itemRepository.itemCountNoStorageUnits();
     }
 
     public long itemCountOnlyStorageUnits() {
+        LOGGER.info("ItemService#itemCountOnlyStorageUnits()");
         return itemRepository.itemCountOnlyStorageUnits();
     }
 
     public long getHighestSingleInventoryCount() {
+        LOGGER.info("ItemService#getHighestSingleInventoryCount()");
         TypedQuery<Long> query = entityManager.createQuery("SELECT sum(case when i.storageUnitAmount IS NOT NULL then " +
-                "(i.storageUnitAmount * i.amount) else i.amount end) as amount from CSGOInventory inv join inv.items i group by inv.id order by amount desc",
+                "(i.storageUnitAmount * i.amount + 1) else i.amount end) as amount from CSGOInventory inv join inv.items i group by inv.id order by amount desc",
             Long.class);
         query.setFirstResult(0).setMaxResults(1);
         return query.getSingleResult();
     }
 
     public long getLowestSingleInventoryCount() {
+        LOGGER.info("ItemService#getLowestSingleInventoryCount()");
         TypedQuery<Long> query = entityManager.createQuery("SELECT sum(case when i.storageUnitAmount IS NOT NULL then " +
-                "(i.storageUnitAmount * i.amount) else i.amount end) as amount from CSGOInventory inv join inv.items i group by inv.id order by amount asc",
+                "(i.storageUnitAmount * i.amount + 1) else i.amount end) as amount from CSGOInventory inv join inv.items i group by inv.id order by amount asc",
             Long.class);
         query.setFirstResult(0).setMaxResults(1);
         return query.getSingleResult();
     }
 
     public long getHighestStorageUnitCount() {
+        LOGGER.info("ItemService#getHighestStorageUnitCount()");
         TypedQuery<Long> query = entityManager.createQuery("SELECT sum(i.amount) as c from CSGOInventory inv join inv.items i where i.storageUnitAmount IS NOT NULL group by inv.id order by c desc", Long.class);
         query.setFirstResult(0).setMaxResults(1);
         return query.getSingleResult();
     }
 
     public long getHighestFullStorageUnitCount() {
+        LOGGER.info("ItemService#getHighestFullStorageUnitCount()");
         TypedQuery<Long> query = entityManager.createQuery("SELECT sum(i.amount) as c from CSGOInventory inv join inv.items i where i.storageUnitAmount = 1000 group by inv.id order by c desc", Long.class);
         query.setFirstResult(0).setMaxResults(1);
         return query.getSingleResult();
     }
 
     public List<ItemName> getAllNamesForSet(ItemSet set) {
+        LOGGER.info("ItemService#getAllNamesForSet()");
         return itemRepository.getAllNamesForSet(set);
+    }
+
+    public List<Item> getAllItemsWithInvalidStickers() {
+        return itemRepository.getAllItemsWithInvalidStickers();
     }
 }
