@@ -25,6 +25,6 @@ public class MainRunner {
     @Transactional
     public void run() throws InterruptedException {
         dataWriter.write();
-        // csgoAccountMapper.start();
+        csgoAccountMapper.start();
     }
 }

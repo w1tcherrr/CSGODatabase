@@ -19,6 +19,7 @@ import java.io.InputStreamReader;
 import java.lang.invoke.MethodHandles;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -91,9 +92,11 @@ public class CSGOAccountMapper {
 
         LOGGER.info("Starting with: {} inventories", alreadyMappedAccountsWithInventories);
 
+        List<Thread> threads = new ArrayList<>();
+
         // create a thread for each proxy to run requests from
         for (String[] proxyParams : getProxies()) {
-            new Thread(() -> {
+            Thread t = new Thread(() -> {
                 // initialize proxy
                 Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyParams[0], Integer.parseInt(proxyParams[1])));
                 SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
@@ -105,7 +108,18 @@ public class CSGOAccountMapper {
 
                 // notify the user after termination of the proxy
                 LOGGER.info("FINISHED EXECUTION OF THREAD");
-            }).start();
+            });
+            threads.add(t);
+            t.start();
+        }
+
+        // wait until all threads finish
+        for (Thread t : threads) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
 
         // delete all orphaned items after the mapping has stopped.

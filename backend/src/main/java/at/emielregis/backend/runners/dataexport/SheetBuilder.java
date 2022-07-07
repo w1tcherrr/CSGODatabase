@@ -2,7 +2,7 @@ package at.emielregis.backend.runners.dataexport;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import lombok.experimental.Accessors;
+import lombok.ToString;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
@@ -15,15 +15,14 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-@Accessors(fluent = true, prefix = "with")
 public class SheetBuilder {
-    private static final Map<Workbook, List<SheetBuilder>> builders = new HashMap<>();
+    private static final Map<Workbook, List<SheetBuilder>> builders = new ConcurrentHashMap<>();
     private Sheet sheet;
     private Workbook workbook;
     private boolean hasTitleRow = false;
@@ -31,6 +30,7 @@ public class SheetBuilder {
     private final List<Row> rows = new ArrayList<>();
 
     public static synchronized SheetBuilder create(Workbook workbook, String title) {
+        title = title.replaceAll("[/\\\\?*\\[\\]:]", ""); // replaces forbidden characters
         SheetBuilder builder = new SheetBuilder();
         builder.sheet = workbook.createSheet(title);
         builder.workbook = workbook;
@@ -92,8 +92,8 @@ public class SheetBuilder {
     }
 
     public void build() {
-        setStandardStyle();
         setRowNumbers();
+        setStandardStyle();
     }
 
     public void setStandardStyle() {

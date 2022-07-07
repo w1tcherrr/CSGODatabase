@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -95,9 +96,9 @@ public class DataWriter {
         LOGGER.info("Writing All Data");
         Workbook workBook = new XSSFWorkbook();
         SheetBuilder builder = SheetBuilder.create(workBook, "Combined Data");
-        createLinesForItemSearch("").forEach(builder::addRow);
         builder.setTitleRow("Combined Data");
         builder.setDescriptionRow("Item Name", "Total Count");
+        createLinesForItemSearch("").forEach(builder::addRow);
         writeWorkBookToFile("Combined_Data.xlsx", workBook);
     }
 
@@ -171,6 +172,8 @@ public class DataWriter {
         for (String[] strings : majorList) {
             SheetBuilder builder = SheetBuilder.create(workBook, strings[0]);
             String[] searches = Arrays.copyOfRange(strings, 1, strings.length);
+            builder.setTitleRow(strings[0]);
+            builder.setDescriptionRow("Item Name", "Total Amount");
             createLinesForItemSearch(searches).forEach(builder::addRow);
         }
 
@@ -275,7 +278,7 @@ public class DataWriter {
     private List<String[]> createLinesForItemSet(ItemSet set) {
         List<ItemName> allValidItemNames = itemService.getAllNamesForSet(set);
 
-        List<String[]> lines = new ArrayList<>();
+        List<String[]> lines = Collections.synchronizedList(new ArrayList<>());
         List<String[]> finalLines = lines;
         AtomicInteger index = new AtomicInteger(1);
         String[] titleArray = new String[20];
@@ -327,9 +330,7 @@ public class DataWriter {
 
             String[] currentLine = formatLineForItems(itemName, allItemsForName, setHasStatTrak, setHasSouvenir, finalExteriors);
 
-            synchronized (this) {
-                finalLines.add(currentLine);
-            }
+            finalLines.add(currentLine);
         });
 
         lines = lines.stream().sorted(Comparator.comparingInt(v -> Integer.parseInt(((String[]) v)[1])).reversed()).collect(Collectors.toList());
@@ -348,7 +349,7 @@ public class DataWriter {
 
         allValidItemNames = allValidItemNames.stream().distinct().collect(Collectors.toList());
 
-        List<String[]> lines = new ArrayList<>();
+        List<String[]> lines = Collections.synchronizedList(new ArrayList<>());
         List<String[]> finalLines = lines;
         AtomicInteger index = new AtomicInteger(1);
         int totalAmount = allValidItemNames.size();
@@ -357,14 +358,13 @@ public class DataWriter {
             List<Item> allItemsForName = itemService.getItemsForName(itemName);
 
             if (allItemsForName.size() == 0) {
+                LOGGER.warn("No items for " + itemName.getName() + " found!");
                 return;
             }
 
             String[] currentLine = formatLineForItems(itemName, allItemsForName, false, false, null);
 
-            synchronized (this) {
-                finalLines.add(currentLine);
-            }
+            finalLines.add(currentLine);
         });
 
         // sort by total amount
@@ -378,11 +378,11 @@ public class DataWriter {
         // name
         line[0] = itemName.getName();
         // total count
-        line[1] = "" + items.stream().map(Item::getAmount).mapToInt(v -> v).sum();
+        line[1] = "" + items.parallelStream().map(Item::getAmount).mapToInt(v -> v).sum();
         // souvenir or stattrak count
 
         if (hasSouvenir) {
-            int amount = items.stream().map(item -> {
+            int amount = items.parallelStream().map(item -> {
                 if (item.isSouvenir()) {
                     return item.getAmount();
                 }
@@ -394,7 +394,7 @@ public class DataWriter {
         }
 
         if (hasStatTrak) {
-            int amount = items.stream().map(item -> {
+            int amount = items.parallelStream().map(item -> {
                 if (item.isStatTrak()) {
                     return item.getAmount();
                 }
@@ -409,14 +409,14 @@ public class DataWriter {
         if (possibleExteriors != null && items.get(0).getExterior() != null) {
             int index = 4;
             for (Exterior exterior : possibleExteriors) {
-                line[index++] = "" + items.stream().filter(item -> item.getExterior() == exterior && !item.isSouvenir() && !item.isStatTrak()).map(Item::getAmount).mapToInt(v -> v).sum();
+                line[index++] = "" + items.parallelStream().filter(item -> item.getExterior() == exterior && !item.isSouvenir() && !item.isStatTrak()).map(Item::getAmount).mapToInt(v -> v).sum();
             }
 
             index++;
 
             if (hasSouvenir || hasStatTrak) {
                 for (Exterior exterior : possibleExteriors) {
-                    line[index++] = "" + items.stream().filter(item -> item.getExterior() == exterior && (item.isSouvenir() || item.isStatTrak())).map(Item::getAmount).mapToInt(v -> v).sum();
+                    line[index++] = "" + items.parallelStream().filter(item -> item.getExterior() == exterior && (item.isSouvenir() || item.isStatTrak())).map(Item::getAmount).mapToInt(v -> v).sum();
                 }
             }
         }
