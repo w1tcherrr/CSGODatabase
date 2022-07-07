@@ -145,6 +145,9 @@ public class HttpInventoryResponse {
                                             }
                                         }
 
+                                        // for some reason very few stickers contain doubled spaces
+                                        stickerName = stickerName.replaceAll(" {2}", " ");
+
                                         stickers.add(TransientSticker.builder().name(stickerName).stickerType(StickerType.ofName(stickerName)).build());
                                     }
 

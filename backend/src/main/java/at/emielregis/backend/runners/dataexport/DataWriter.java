@@ -11,32 +11,22 @@ import at.emielregis.backend.service.ItemService;
 import at.emielregis.backend.service.ItemSetService;
 import at.emielregis.backend.service.SteamAccountService;
 import at.emielregis.backend.service.StickerService;
-import org.apache.catalina.manager.JspHelper;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.FillPatternType;
-import org.apache.poi.ss.usermodel.IndexedColors;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import static at.emielregis.backend.runners.dataexport.DataWriterUtils.writeWorkBookToFile;
 
 @Component
 @Transactional
@@ -71,23 +61,20 @@ public class DataWriter {
     public void write() throws InterruptedException {
         LOGGER.info("Writing Data now");
 
-        // writes all raw data into a single file
+        // write all raw data into a single file
         runThread(this::writeAll);
 
-        // writes some miscellaneous data
+        // write some miscellaneous data
         runThread(this::writeMiscellaneous);
 
-        // writes data for all majors
+        // write data for all majors
         runThread(this::writeMajors);
 
-        // writes data for all normal item collections
+        // write data for all normal item collections
         runThread(this::writeCollections);
 
-        // writes cases
+        // write cases
         runThread(this::writeCases);
-
-        // writes all containers
-        runThread(this::writeContainers);
 
         awaitAll();
     }
@@ -107,73 +94,86 @@ public class DataWriter {
     private void writeAll() {
         LOGGER.info("Writing All Data");
         Workbook workBook = new XSSFWorkbook();
-        createSheet(workBook, "Combined Data", createLinesForItemSearch(""));
+        SheetBuilder builder = SheetBuilder.create(workBook, "Combined Data");
+        createLinesForItemSearch("").forEach(builder::addRow);
+        builder.setTitleRow("Combined Data");
+        builder.setDescriptionRow("Item Name", "Total Count");
         writeWorkBookToFile("Combined_Data.xlsx", workBook);
     }
 
     private void writeMiscellaneous() {
         LOGGER.info("Writing miscellaneous Data");
-        Workbook workBook = new XSSFWorkbook();
 
-        List<String[]> miscellaneousData = new ArrayList<>();
+        Workbook workBook = new XSSFWorkbook();
+        SheetBuilder builder = SheetBuilder.create(workBook, "Miscellaneous");
+        builder.setTitleRow("Miscellaneous");
 
         // total amounts
         long noStorageUnitCount = itemService.itemCountNoStorageUnits();
         long onlyStorageUnitCount = itemService.itemCountOnlyStorageUnits();
         long totalCount = noStorageUnitCount + onlyStorageUnitCount;
 
-        emptyLine(miscellaneousData);
+        builder.emptyLines(1);
 
-        addLine(miscellaneousData, "Total Steam-Accounts queried:", "" + formatNumber(steamAccountService.count()));
-        addLine(miscellaneousData, "Total CSGO-Accounts queried:", "" + formatNumber(csgoAccountService.count()));
-        addLine(miscellaneousData, "Total CSGO-Accounts with inventories queried:", "" + formatNumber(csgoAccountService.countWithInventory()));
-        emptyLine(miscellaneousData);
+        builder.addRow("Total Steam-Accounts queried:", "" + (steamAccountService.count()));
+        builder.addRow("Total CSGO-Accounts queried:", "" + (csgoAccountService.count()));
+        builder.addRow("Total CSGO-Accounts with inventories queried:", "" + (csgoAccountService.countWithInventory()));
+        builder.emptyLines(1);
 
-        addLine(miscellaneousData, "Total Items (no Storage Units):", "" + formatNumber(noStorageUnitCount));
-        addLine(miscellaneousData, "Total Items in Storage Units:", "" + formatNumber(onlyStorageUnitCount));
-        addLine(miscellaneousData, "Total Items:", "" + formatNumber(totalCount));
-        emptyLine(miscellaneousData);
+        builder.addRow("Total Items (no Storage Units):", "" + (noStorageUnitCount));
+        builder.addRow("Total Items in Storage Units:", "" + (onlyStorageUnitCount));
+        builder.addRow("Total Items:", "" + (totalCount));
+        builder.emptyLines(1);
 
-        addLine(miscellaneousData, "Most Storage Units in one inventory:", "" + formatNumber(itemService.getHighestStorageUnitCount()));
-        addLine(miscellaneousData, "Most full Storage Units in one inventory:", "" + formatNumber(itemService.getHighestFullStorageUnitCount()));
-        addLine(miscellaneousData, "Most items in one inventory:", "" + formatNumber(itemService.getHighestSingleInventoryCount()));
-        addLine(miscellaneousData, "Least items in one inventory:", "" + formatNumber(itemService.getLowestSingleInventoryCount()));
-        addLine(miscellaneousData, "Average items per inventory:", "" + formatNumber(totalCount / csgoAccountService.countWithInventory()));
-        emptyLine(miscellaneousData);
+        builder.addRow("Most Storage Units in one inventory:", "" + (itemService.getHighestStorageUnitCount()));
+        builder.addRow("Most full Storage Units in one inventory:", "" + (itemService.getHighestFullStorageUnitCount()));
+        builder.addRow("Most items in one inventory:", "" + (itemService.getHighestSingleInventoryCount()));
+        builder.addRow("Least items in one inventory:", "" + (itemService.getLowestSingleInventoryCount()));
+        builder.addRow("Average items per inventory:", "" + (totalCount / csgoAccountService.countWithInventory()));
+        builder.emptyLines(1);
 
-        addLine(miscellaneousData, "Total amount of item sets:", "" + formatNumber(itemSetService.count()));
-        addLine(miscellaneousData, "Total amount of item categories:", "" + formatNumber(itemCategoryService.count()));
-        addLine(miscellaneousData, "Total amount of different items:", "" + formatNumber(itemNameService.count()));
-        addLine(miscellaneousData, "Total amount of different non-applied stickers:", "" + formatNumber(stickerService.countNonApplied()));
-        addLine(miscellaneousData, "Total amount of different applied stickers:", "" + formatNumber(stickerService.count()));
+        builder.addRow("Total amount of item sets:", "" + (itemSetService.count()));
+        builder.addRow("Total amount of item categories:", "" + (itemCategoryService.count()));
+        builder.addRow("Total amount of different items:", "" + (itemNameService.count()));
+        builder.addRow("Total amount of different non-applied stickers:", "" + (stickerService.countNonApplied()));
+        builder.addRow("Total amount of different applied stickers:", "" + (stickerService.count()), "<- Note: This number is higher due to old unobtainable Souvenir stickers");
+        builder.emptyLines(1);
 
-        emptyLine(miscellaneousData);
-        addLine(miscellaneousData, "Total applied stickers:", "" + formatNumber(stickerService.appliedStickerCount()));
+        builder.addRow("Total applied stickers:", "" + (stickerService.appliedStickerCount()));
 
-        createSheet(workBook, "Miscellaneous", miscellaneousData);
         writeWorkBookToFile("Miscellaneous_Data.xlsx", workBook);
     }
 
     private void writeMajors() {
         LOGGER.info("Writing Major Data");
+        List<String[]> majorList = List.of(
+            new String[]{"Antwerp 2022", "Antwerp 2022"},
+            new String[]{"Stockholm 2021", "Stockholm 2021"},
+            new String[]{"Berlin 2019", "Berlin 2019"},
+            new String[]{"Katowice 2019", "Katowice 2019"},
+            new String[]{"London 2018", "London 2018"},
+            new String[]{"Boston 2018", "Boston 2018"},
+            new String[]{"Krakow 2017", "Krakow 2018"},
+            new String[]{"Atlanta 2017", "Atlanta 2017"},
+            new String[]{"Cologne 2016", "Cologne 2016"},
+            new String[]{"Columbus 2016", "Columbus 2016"},
+            new String[]{"Cluj-Napoca 2015", "Cluj-Napoca 2015"},
+            new String[]{"Cologne 2015", "Cologne 2015"},
+            new String[]{"Katowice 2015", "Katowice 2015"},
+            new String[]{"DreamHack Winter 2014", "DreamHack Winter 2014", "DreamHack 2014"},
+            new String[]{"Cologne 2014", "Cologne 2014"},
+            new String[]{"Katowice 2014", "Katowice 2014"},
+            new String[]{"DreamHack Winter 2013", "DreamHack 2013", "DreamHack Winter 2013"}
+        );
+
         Workbook workBook = new XSSFWorkbook();
-        createSheet(workBook, "Antwerp 2022", createLinesForItemSearch("Antwerp 2022"));
-        createSheet(workBook, "Stockholm 2021", createLinesForItemSearch("Stockholm 2021"));
-        createSheet(workBook, "Berlin 2019", createLinesForItemSearch("Berlin 2019"));
-        createSheet(workBook, "Katowice 2019", createLinesForItemSearch("Katowice 2019"));
-        createSheet(workBook, "London 2018", createLinesForItemSearch("London 2018"));
-        createSheet(workBook, "Boston 2018", createLinesForItemSearch("Boston 2018"));
-        createSheet(workBook, "Krakow 2017", createLinesForItemSearch("Krakow 2017"));
-        createSheet(workBook, "Atlanta 2017", createLinesForItemSearch("Atlanta 2017"));
-        createSheet(workBook, "Cologne 2016", createLinesForItemSearch("Cologne 2016"));
-        createSheet(workBook, "Columbus 2016", createLinesForItemSearch("Columbus 2016"));
-        createSheet(workBook, "Cluj-Napoca 2015", createLinesForItemSearch("Cluj-Napoca 2015"));
-        createSheet(workBook, "Cologne 2015", createLinesForItemSearch("Cologne 2015"));
-        createSheet(workBook, "Katowice 2015", createLinesForItemSearch("Katowice 2015"));
-        createSheet(workBook, "DreamHack Winter 2014", createLinesForItemSearch("DreamHack Winter 2014", "DreamHack 2014"));
-        createSheet(workBook, "Cologne 2014", createLinesForItemSearch("Cologne 2014"));
-        createSheet(workBook, "Katowice 2014", createLinesForItemSearch("Katowice 2014"));
-        createSheet(workBook, "DreamHack Winter 2013", createLinesForItemSearch("DreamHack 2013", "DreamHack Winter 2013"));
+
+        for (String[] strings : majorList) {
+            SheetBuilder builder = SheetBuilder.create(workBook, strings[0]);
+            String[] searches = Arrays.copyOfRange(strings, 1, strings.length);
+            createLinesForItemSearch(searches).forEach(builder::addRow);
+        }
+
         writeWorkBookToFile("All_Major_Items.xlsx", workBook);
     }
 
@@ -185,17 +185,91 @@ public class DataWriter {
 
     private void writeAllCollections() {
         Workbook workBook = new XSSFWorkbook();
+
         List<ItemSet> collectionSets = itemSetService.getAll();
-        collectionSets.forEach(set -> createSheet(workBook, set.getName(), createLinesForItemSet(set)));
+
+        for (ItemSet set : collectionSets) {
+            SheetBuilder builder = SheetBuilder.create(workBook, set.getName());
+            List<String[]> lines = createLinesForItemSet(set);
+            builder.setTitleRow(set.getName());
+            builder.setDescriptionRow(lines.get(0));
+            lines.subList(1, lines.size()).forEach(builder::addRow);
+        }
+
         writeWorkBookToFile("All_Collections.xlsx", workBook);
     }
 
     private void writeSouvenirCollections() {
         Workbook workBook = new XSSFWorkbook();
-        List<ItemSet> collectionSets = itemSetService.search("Mirage", "Dust II", "Ancient", "Inferno",
+
+        List<ItemSet> collectionSets = itemSetService.searchBySubstring("Mirage", "Dust II", "Ancient", "Inferno",
             "Overpass", "Nuke", "Vertigo", "Cache", "Cobblestone", "Train", "Souvenir");
-        collectionSets.forEach(set -> createSheet(workBook, set.getName(), createLinesForItemSet(set)));
+
+        for (ItemSet set : collectionSets) {
+            SheetBuilder builder = SheetBuilder.create(workBook, set.getName());
+            List<String[]> lines = createLinesForItemSet(set);
+            builder.setTitleRow(set.getName());
+            builder.setDescriptionRow(lines.get(0));
+            lines.subList(1, lines.size()).forEach(builder::addRow);
+        }
+
         writeWorkBookToFile("Souvenir_Collections.xlsx", workBook);
+    }
+
+    private void writeCases() {
+        Workbook workBook = new XSSFWorkbook();
+
+        // all case sets
+        List<ItemSet> caseSets = itemSetService.searchByEquality(
+            "The Recoil Collection",
+            "The Dreams & Nightmares Collection",
+            "The Operation Riptide Collection",
+            "The Snakebite Collection",
+            "The Operation Broken Fang Collection",
+            "The Fracture Collection",
+            "The Prisma 2 Collection",
+            "The Prisma Collection",
+            "The CS20 Collection",
+            "The Shattered Web Collection",
+            "The Danger Zone Collection",
+            "The Horizon Collection",
+            "The Clutch Collection",
+            "The Spectrum 2 Collection",
+            "The Spectrum Collection",
+            "The Operation Hydra Collection",
+            "The Glove Collection",
+            "The Gamma 2 Collection",
+            "The Gamma Collection",
+            "The Chroma Collection",
+            "The Chroma 2 Collection",
+            "The Chroma 3 Collection",
+            "The Wildfire Collection",
+            "The Revolver Case Collection",
+            "The Shadow Collection",
+            "The Falchion Collection",
+            "The Vanguard Collection",
+            "The eSports 2014 Summer Collection",
+            "The Breakout Collection",
+            "The Huntsman Collection",
+            "The Phoenix Collection",
+            "The Arms Deal Collection",
+            "The Arms Deal 2 Collection",
+            "The Arms Deal 3 Collection",
+            "The Winter Offensive Collection",
+            "The eSports 2013 Winter Collection",
+            "The eSports 2013 Collection",
+            "The Bravo Collection"
+        );
+
+        for (ItemSet set : caseSets) {
+            SheetBuilder builder = SheetBuilder.create(workBook, set.getName());
+            List<String[]> lines = createLinesForItemSet(set);
+            builder.setTitleRow(set.getName());
+            builder.setDescriptionRow(lines.get(0));
+            lines.subList(1, lines.size()).forEach(builder::addRow);
+        }
+
+        writeWorkBookToFile("Cases.xlsx", workBook);
     }
 
     private List<String[]> createLinesForItemSet(ItemSet set) {
@@ -295,109 +369,8 @@ public class DataWriter {
 
         // sort by total amount
         lines = lines.stream().sorted(Comparator.comparingInt(v -> Integer.parseInt(((String[]) v)[1])).reversed()).collect(Collectors.toList());
-        lines.add(0, new String[]{"Item name", "Total Amount"});
 
         return lines;
-    }
-
-    private void writeCases() {
-        Workbook workBook = new XSSFWorkbook();
-        List<ItemSet> collectionSets = itemSetService.search("Mirage", "Dust II", "Ancient", "Inferno",
-            "Overpass", "Nuke", "Vertigo", "Cache", "Cobblestone", "Train", "Souvenir");
-        collectionSets.forEach(set -> createSheet(workBook, set.getName(), createLinesForItemSet(set)));
-        writeWorkBookToFile("Cases.xlsx", workBook);
-    }
-
-    private void writeContainers() {
-        Workbook workBook = new XSSFWorkbook();
-        List<ItemSet> collectionSets = itemSetService.search("Mirage", "Dust II", "Ancient", "Inferno",
-            "Overpass", "Nuke", "Vertigo", "Cache", "Cobblestone", "Train", "Souvenir");
-        collectionSets.forEach(set -> createSheet(workBook, set.getName(), createLinesForItemSet(set)));
-        writeWorkBookToFile("Containers.xlsx", workBook);
-    }
-
-    private void createSheet(Workbook workbook, String title, List<String[]> lines) {
-        Sheet sheet = workbook.createSheet(title.replaceAll("[:/\\\\?*,.\\[\\]]", "")); // remove forbidden characters
-
-        Row header = sheet.createRow(0);
-        CellStyle headerStyle = workbook.createCellStyle();
-        headerStyle.setFillForegroundColor(IndexedColors.ORANGE.getIndex());
-        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-
-        XSSFFont font = ((XSSFWorkbook) workbook).createFont();
-        font.setFontName("Serif");
-        font.setFontHeightInPoints((short) 16);
-        font.setBold(true);
-        headerStyle.setFont(font);
-
-        Cell headerCell = header.createCell(0);
-        headerCell.setCellValue(title);
-        headerCell.setCellStyle(headerStyle);
-
-        for (int i = 1; i < 20; i++) {
-            Cell cell = header.createCell(i);
-            cell.setCellStyle(headerStyle);
-        }
-
-        String[] firstRow = lines.get(0);
-        if (firstRow != null) {
-            Row columnNames = sheet.createRow(1);
-            for (int i = 0; i < firstRow.length; i++) {
-                var cell = columnNames.createCell(i);
-                cell.setCellValue(firstRow[i]);
-            }
-        }
-
-        // auto size all columns
-        // 1.14388 is the max character width in serif
-        for (int i = 0; i < 20; i++) {
-            int finalI = i;
-            int maxChars = lines.stream().filter(line -> line != null && line.length > finalI).map(line -> line[finalI]).filter(Objects::nonNull).map(String::length).max(Comparator.comparingInt(v -> v)).orElse(-1);
-
-            // if the title is longer than any value in the cells
-            if (firstRow != null && firstRow.length > i && firstRow[i] != null) {
-                if (firstRow[i].length() > maxChars) {
-                    maxChars = firstRow[i].length();
-                }
-            }
-
-            // in this case there is no data in this column, so we don't edit the column
-            if (maxChars == -1) {
-                sheet.setColumnWidth(i, 256 * 10);
-                continue;
-            }
-
-            sheet.setColumnWidth(i, (int) (maxChars * 1.14388) * 256);
-        }
-
-        for (int i = 1; i < lines.size(); i++) {
-            Row row = sheet.createRow(firstRow == null ? i + 1 : i + 2);
-            String[] cells = lines.get(i);
-            if (cells == null) {
-                continue;
-            }
-            for (int j = 0; j < cells.length; j++) {
-                Cell cell = row.createCell(j);
-                cell.setCellValue(cells[j]);
-            }
-        }
-
-        LOGGER.info("Created sheet " + title + " in workbook.");
-    }
-
-    private synchronized void writeWorkBookToFile(String fileName, Workbook workbook) {
-        LOGGER.info("Writing file " + fileName);
-
-        String directoryName = "C:\\Users\\mitch\\Documents\\GitHub\\CSGODatabaseSpring\\output";
-
-        new File(directoryName).mkdir();
-        File file = new File(directoryName, fileName);
-
-        try (OutputStream outputWriter = new FileOutputStream(file)) {
-            workbook.write(outputWriter);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     private String[] formatLineForItems(ItemName itemName, List<Item> items, boolean hasStatTrak, boolean hasSouvenir, List<Exterior> possibleExteriors) {
@@ -449,23 +422,5 @@ public class DataWriter {
         }
 
         return line;
-    }
-
-    private String formatNumber(long number) {
-        return JspHelper.formatNumber(number).replaceAll(",", ".");
-    }
-
-    private void addLine(List<String[]> list, String... text) {
-        list.add(text);
-    }
-
-    private void emptyLine(List<String[]> list) {
-        emptyLines(list, 1);
-    }
-
-    private void emptyLines(List<String[]> list, int l) {
-        for (int i = 0; i < l; i++) {
-            addLine(list, "");
-        }
     }
 }

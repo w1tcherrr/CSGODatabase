@@ -17,10 +17,18 @@ import java.util.stream.Collectors;
 public record ItemSetService(ItemSetRepository itemSetRepository) {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    public List<ItemSet> search(String... searches) {
+    public List<ItemSet> searchBySubstring(String... searches) {
         List<ItemSet> sets = new ArrayList<>();
         for (String search : searches) {
             sets.addAll(itemSetRepository.search(search));
+        }
+        return sets.stream().distinct().toList();
+    }
+
+    public List<ItemSet> searchByEquality(String... searches) {
+        List<ItemSet> sets = new ArrayList<>();
+        for (String search : searches) {
+            sets.add(itemSetRepository.getByName(search));
         }
         return sets.stream().distinct().toList();
     }
