@@ -2,7 +2,7 @@ package at.emielregis.backend.runners.dataexport;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
@@ -79,6 +79,8 @@ public class SheetBuilder {
             String value = text[i];
             if (DataWriterUtils.isNumber(value)) {
                 value = DataWriterUtils.formatNumber(Long.parseLong(value));
+            } else if (!StringUtils.isEmpty(value) && value.trim().equals("0")) {
+                value = null;
             }
             cell.setCellValue(value != null ? value : "");
         }
@@ -101,7 +103,7 @@ public class SheetBuilder {
             Row titleRow = rows.get(0);
 
             CellStyle titleStyle = workbook.createCellStyle();
-            titleStyle.setFillForegroundColor(IndexedColors.GREEN.getIndex());
+            titleStyle.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
             titleStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
             XSSFFont font = ((XSSFWorkbook) workbook).createFont();
@@ -117,7 +119,7 @@ public class SheetBuilder {
             Row descriptionRow = rows.get(hasTitleRow ? 1 : 0);
 
             CellStyle descriptionStyle = workbook.createCellStyle();
-            descriptionStyle.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
+            descriptionStyle.setFillForegroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.getIndex());
             descriptionStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
             XSSFFont font = ((XSSFWorkbook) workbook).createFont();

@@ -16,4 +16,9 @@ public interface ItemNameRepository extends JpaRepository<ItemName, Long> {
         "Select i from ItemName i where upper(i.name) like UPPER(CONCAT('%',:filter,'%'))"
     )
     List<ItemName> getSearch(@Param("filter") String filter);
+
+    @Query(
+        "Select distinct i.name from Item i where i.name.name like '%Sticker%' and i.itemSet IS NULL"
+    )
+    List<ItemName> getUnclassifiedStickerNames();
 }

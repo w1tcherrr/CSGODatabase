@@ -39,7 +39,7 @@ public class SteamAccountService {
             initialized = true;
             init();
         }
-        if (ids.size() < 5_000) { // if not enough ids are left fetch all new ids
+        if (ids.size() < 1_000) { // if not enough ids are left fetch all new ids
             init();
         }
         if (amount < 0) {

@@ -128,7 +128,7 @@ public class PersistentDataService {
      * This is called whenever an exception in the REST call happens after the page was distributed to the proxy.
      *
      * @param currentGroup The name of the group.
-     * @param currentPage The page to be removed.
+     * @param currentPage  The page to be removed.
      */
     @Transactional
     public synchronized void freePage(String currentGroup, long currentPage) {

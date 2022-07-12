@@ -4,6 +4,7 @@ import at.emielregis.backend.data.dtos.TransientItem;
 import at.emielregis.backend.data.entities.Item;
 import at.emielregis.backend.data.entities.ItemName;
 import at.emielregis.backend.data.entities.ItemSet;
+import at.emielregis.backend.data.enums.Exterior;
 import at.emielregis.backend.repository.ItemRepository;
 import at.emielregis.backend.service.mapper.Mapper;
 import org.slf4j.Logger;
@@ -58,10 +59,13 @@ public class ItemService {
 
     @Transactional
     public void deleteAllById(Set<Long> orphanedIDs) {
-        itemRepository.deleteAllById(orphanedIDs);
+        for (Long id : orphanedIDs) {
+            itemRepository.deleteById(id);
+        }
+        itemRepository.flush();
     }
 
-    public Long count() {
+    public long count() {
         return itemRepository.count();
     }
 
@@ -72,7 +76,7 @@ public class ItemService {
 
     public long itemCountOnlyStorageUnits() {
         LOGGER.info("ItemService#itemCountOnlyStorageUnits()");
-        return itemRepository.itemCountOnlyStorageUnits();
+        return itemRepository.itemCountInStorageUnits();
     }
 
     public long getHighestSingleInventoryCount() {
@@ -112,7 +116,59 @@ public class ItemService {
         return itemRepository.getAllNamesForSet(set);
     }
 
-    public List<Item> getAllItemsWithInvalidStickers() {
-        return itemRepository.getAllItemsWithInvalidStickers();
+    public String getTotalAmountForName(ItemName itemName) {
+        return itemRepository.getTotalAmountForName(itemName);
+    }
+
+    public long getSouvenirOrStatTrakAmountForName(ItemName itemName) {
+        Long amount = itemRepository.getSouvenirOrStatTrakAmountForName(itemName);
+        if (amount == null) {
+            return 0;
+        }
+        return amount;
+    }
+
+    public boolean itemNameHasExteriors(ItemName itemName) {
+        return itemRepository.itemNameHasExteriors(itemName);
+    }
+
+    public long countForExteriorAndType(ItemName itemName, Exterior exterior, boolean statTrak, boolean souvenir) {
+        Long amount = itemRepository.countForExteriorAndType(itemName, exterior, statTrak, souvenir);
+        if (amount == null) {
+            return 0;
+        }
+        return amount;
+    }
+
+    public long getTotalAmountForSet(ItemSet set) {
+        Long amount = itemRepository.countForSet(set);
+        if (amount == null) {
+            return 0;
+        }
+        return amount;
+    }
+
+    public long getNormalItemCount() {
+        return itemRepository.normalItemCount();
+    }
+
+    public long getTotalAmountOfEmptyStorageUnits() {
+        return itemRepository.getTotalAmountOfStorageUnitsWithNoName();
+    }
+
+    public List<String> getAllStorageUnitNameTags() {
+        return itemRepository.getAllStorageUnitNameTags();
+    }
+
+    public long getAmountOfStorageUnitsWithNameTag(String nameTag) {
+        return itemRepository.getAmountOfStorageUnitsWithNameTag(nameTag);
+    }
+
+    public long getAmountOfItemsInStorageUnitsWithNameTag(String nameTag) {
+        return itemRepository.getAmountOfItemsInStorageUnitsWithNameTag(nameTag);
+    }
+
+    public List<Item> getStorageUnitsForNameTag(String tag) {
+        return itemRepository.getStorageUnitsForNameTag(tag);
     }
 }

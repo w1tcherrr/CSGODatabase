@@ -28,7 +28,7 @@ public class UrlProvider {
      * Gets the steam group xml request page for the specified group and page.
      *
      * @param steamGroupName The name of the steam group.
-     * @param page The page number to be retrieved.
+     * @param page           The page number to be retrieved.
      * @return The url.
      */
     public String getSteamGroupRequest(String steamGroupName, long page) {

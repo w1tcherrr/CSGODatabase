@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -71,11 +72,16 @@ public class DataWriter {
         // write data for all majors
         runThread(this::writeMajors);
 
-        // write data for all normal item collections
-        runThread(this::writeCollections);
+        // write data for all collections
+        runThread(this::writeSouvenirCollections);
+        runThread(this::writeStickerCollections);
+        runThread(this::writePatches);
 
         // write cases
         runThread(this::writeCases);
+
+        // write storage units
+        runThread(this::writeStorageUnits);
 
         awaitAll();
     }
@@ -150,11 +156,12 @@ public class DataWriter {
         List<String[]> majorList = List.of(
             new String[]{"Antwerp 2022", "Antwerp 2022"},
             new String[]{"Stockholm 2021", "Stockholm 2021"},
+            new String[]{"RMR 2020", "2020 RMR"},
             new String[]{"Berlin 2019", "Berlin 2019"},
             new String[]{"Katowice 2019", "Katowice 2019"},
             new String[]{"London 2018", "London 2018"},
             new String[]{"Boston 2018", "Boston 2018"},
-            new String[]{"Krakow 2017", "Krakow 2018"},
+            new String[]{"Krakow 2017", "Krakow 2017"},
             new String[]{"Atlanta 2017", "Atlanta 2017"},
             new String[]{"Cologne 2016", "Cologne 2016"},
             new String[]{"Columbus 2016", "Columbus 2016"},
@@ -177,36 +184,13 @@ public class DataWriter {
             createLinesForItemSearch(searches).forEach(builder::addRow);
         }
 
-        writeWorkBookToFile("All_Major_Items.xlsx", workBook);
-    }
-
-    private void writeCollections() {
-        LOGGER.info("Writing Collection Data");
-        writeAllCollections();
-        writeSouvenirCollections();
-    }
-
-    private void writeAllCollections() {
-        Workbook workBook = new XSSFWorkbook();
-
-        List<ItemSet> collectionSets = itemSetService.getAll();
-
-        for (ItemSet set : collectionSets) {
-            SheetBuilder builder = SheetBuilder.create(workBook, set.getName());
-            List<String[]> lines = createLinesForItemSet(set);
-            builder.setTitleRow(set.getName());
-            builder.setDescriptionRow(lines.get(0));
-            lines.subList(1, lines.size()).forEach(builder::addRow);
-        }
-
-        writeWorkBookToFile("All_Collections.xlsx", workBook);
+        writeWorkBookToFile("Major_Collections.xlsx", workBook);
     }
 
     private void writeSouvenirCollections() {
         Workbook workBook = new XSSFWorkbook();
 
-        List<ItemSet> collectionSets = itemSetService.searchBySubstring("Mirage", "Dust II", "Ancient", "Inferno",
-            "Overpass", "Nuke", "Vertigo", "Cache", "Cobblestone", "Train", "Souvenir");
+        List<ItemSet> collectionSets = itemSetService.getAllSouvenirCollections();
 
         for (ItemSet set : collectionSets) {
             SheetBuilder builder = SheetBuilder.create(workBook, set.getName());
@@ -219,50 +203,111 @@ public class DataWriter {
         writeWorkBookToFile("Souvenir_Collections.xlsx", workBook);
     }
 
+    private void writeStickerCollections() {
+        LOGGER.info("Writing Sticker Collections");
+        Workbook workBook = new XSSFWorkbook();
+
+        List<ItemSet> stickerSets = itemSetService.getAllStickerCollections();
+
+        SheetBuilder overviewBuilder = SheetBuilder.create(workBook, "Overview");
+        overviewBuilder.setTitleRow("Overview");
+        overviewBuilder.setDescriptionRow("Collection", "Total Amount (Non applied)", "Total Amount (Applied)");
+
+        List<String[]> rows = new ArrayList<>();
+        AtomicInteger current = new AtomicInteger();
+        for (ItemSet set : stickerSets) {
+            LOGGER.info("Currently mapping total amounts of set " + current.incrementAndGet() + "/" + stickerSets.size() + ": " + set.getName());
+            rows.add(new String[]{set.getName(), "" + itemService.getTotalAmountForSet(set), "" + stickerService.getTotalAppliedForSet(set)});
+        }
+
+        sortByColumn(rows, 1);
+        rows.forEach(overviewBuilder::addRow);
+        overviewBuilder.emptyLines(1);
+        overviewBuilder.addRow("Note: A few old capsules are not identified by the API - their amount are not listed here.");
+
+        SheetBuilder unclassifiedBuilder = SheetBuilder.create(workBook, "Unclassified");
+        unclassifiedBuilder.setTitleRow("Unclassified Stickers");
+        unclassifiedBuilder.setDescriptionRow("Item Name", "Total Amount");
+
+        List<ItemName> unclassifiedStickerNames = itemNameService.getUnclassifiedStickerNames();
+
+        rows = new ArrayList<>();
+        List<String[]> finalRows = rows;
+        current = new AtomicInteger();
+        AtomicInteger finalCurrent = current;
+        unclassifiedStickerNames.forEach(name -> {
+            LOGGER.info("Currently mapping item " + finalCurrent.incrementAndGet() + "/" + unclassifiedStickerNames.size() + ": " + name.getName());
+            finalRows.add(formatLineForItemName(name, false, false, List.of()));
+        });
+
+        sortByColumn(rows, 1);
+        rows.forEach(unclassifiedBuilder::addRow);
+
+        for (ItemSet set : stickerSets) {
+            SheetBuilder builder = SheetBuilder.create(workBook, set.getName());
+            List<String[]> lines = createLinesForItemSet(set);
+            builder.setTitleRow(set.getName());
+            builder.setDescriptionRow(lines.get(0));
+            lines = lines.subList(1, lines.size());
+            lines.forEach(line -> line[2] = "" + stickerService.getTotalAppliedForItemName(line[0]));
+            lines.forEach(builder::addRow);
+        }
+
+        writeWorkBookToFile("Sticker_Collections.xlsx", workBook);
+    }
+
+    private void writePatches() {
+        LOGGER.info("Writing Patch Collections");
+        Workbook workBook = new XSSFWorkbook();
+
+        List<ItemSet> patchSets = itemSetService.getAllPatchCollections();
+
+        SheetBuilder overviewBuilder = SheetBuilder.create(workBook, "Overview");
+        overviewBuilder.setTitleRow("Overview");
+        overviewBuilder.setDescriptionRow("Collection", "Total Amount");
+
+        List<String[]> rows = new ArrayList<>();
+        AtomicInteger current = new AtomicInteger();
+        for (ItemSet set : patchSets) {
+            LOGGER.info("Currently mapping total amount of set " + current.incrementAndGet() + "/" + patchSets.size() + ": " + set.getName());
+            rows.add(new String[]{set.getName(), "" + itemService.getTotalAmountForSet(set)});
+        }
+
+        sortByColumn(rows, 1);
+        rows.forEach(overviewBuilder::addRow);
+
+        for (ItemSet set : patchSets) {
+            SheetBuilder builder = SheetBuilder.create(workBook, set.getName());
+            List<String[]> lines = createLinesForItemSet(set);
+            builder.setTitleRow(set.getName());
+            builder.setDescriptionRow(lines.get(0));
+            lines.subList(1, lines.size()).forEach(builder::addRow);
+        }
+
+        writeWorkBookToFile("Patch_Collections.xlsx", workBook);
+    }
+
     private void writeCases() {
         Workbook workBook = new XSSFWorkbook();
 
-        // all case sets
-        List<ItemSet> caseSets = itemSetService.searchByEquality(
-            "The Recoil Collection",
-            "The Dreams & Nightmares Collection",
-            "The Operation Riptide Collection",
-            "The Snakebite Collection",
-            "The Operation Broken Fang Collection",
-            "The Fracture Collection",
-            "The Prisma 2 Collection",
-            "The Prisma Collection",
-            "The CS20 Collection",
-            "The Shattered Web Collection",
-            "The Danger Zone Collection",
-            "The Horizon Collection",
-            "The Clutch Collection",
-            "The Spectrum 2 Collection",
-            "The Spectrum Collection",
-            "The Operation Hydra Collection",
-            "The Glove Collection",
-            "The Gamma 2 Collection",
-            "The Gamma Collection",
-            "The Chroma Collection",
-            "The Chroma 2 Collection",
-            "The Chroma 3 Collection",
-            "The Wildfire Collection",
-            "The Revolver Case Collection",
-            "The Shadow Collection",
-            "The Falchion Collection",
-            "The Vanguard Collection",
-            "The eSports 2014 Summer Collection",
-            "The Breakout Collection",
-            "The Huntsman Collection",
-            "The Phoenix Collection",
-            "The Arms Deal Collection",
-            "The Arms Deal 2 Collection",
-            "The Arms Deal 3 Collection",
-            "The Winter Offensive Collection",
-            "The eSports 2013 Winter Collection",
-            "The eSports 2013 Collection",
-            "The Bravo Collection"
-        );
+        List<ItemSet> caseSets = itemSetService.getAllCaseCollections();
+
+        SheetBuilder overviewBuilder = SheetBuilder.create(workBook, "Overview");
+        overviewBuilder.setTitleRow("Overview");
+        overviewBuilder.setDescriptionRow("Item Name", "Amount of Cases", "Total amount of items from Collection");
+
+        List<String[]> overviewLines = new ArrayList<>();
+        for (ItemSet set : caseSets) {
+            List<ItemName> allValidItemNames = itemService.getAllNamesForSet(set);
+            for (ItemName name : allValidItemNames) {
+                if (name.getName().matches(".* Case ?[23]?")) {
+                    overviewLines.add(new String[]{name.getName(), "" + itemService.getTotalAmountForName(name), "" + itemService.getTotalAmountForSet(set)});
+                }
+            }
+        }
+
+        sortByColumn(overviewLines, 1);
+        overviewLines.forEach(overviewBuilder::addRow);
 
         for (ItemSet set : caseSets) {
             SheetBuilder builder = SheetBuilder.create(workBook, set.getName());
@@ -272,14 +317,62 @@ public class DataWriter {
             lines.subList(1, lines.size()).forEach(builder::addRow);
         }
 
-        writeWorkBookToFile("Cases.xlsx", workBook);
+        writeWorkBookToFile("Case_Collections.xlsx", workBook);
+    }
+
+    @Transactional
+    protected void writeStorageUnits() {
+        Workbook workBook = new XSSFWorkbook();
+
+        SheetBuilder storageUnitSheetBuilder = SheetBuilder.create(workBook, "Overview");
+        storageUnitSheetBuilder.setTitleRow("Overview");
+        storageUnitSheetBuilder.setDescriptionRow("Storage Unit Name", "Amount of Units with name", "Total amount of items");
+
+        storageUnitSheetBuilder.addRow("Empty units", "" + itemService.getTotalAmountOfEmptyStorageUnits());
+        storageUnitSheetBuilder.emptyLines(1);
+
+        List<String[]> lines = Collections.synchronizedList(new ArrayList<>());
+
+        List<String> nameTags = itemService.getAllStorageUnitNameTags().stream().sorted(Comparator.comparing(str -> str)).toList();
+        AtomicInteger index = new AtomicInteger(-1);
+        int size = nameTags.size();
+        nameTags.parallelStream().forEach(tag -> {
+                if (index.incrementAndGet() % 100 == 0) {
+                    LOGGER.info("Mapped " + index.get() + " names of " + size);
+                }
+                String[] line = new String[3];
+                line[0] = tag;
+
+                // ironically fetching the entities and counting via java instead of in the database is more efficient here
+                // due to the big size of the table. The count query takes up twice as much time.
+                List<Item> storageUnits = itemService.getStorageUnitsForNameTag(tag);
+                line[1] = "" + storageUnits.stream().mapToInt(Item::getAmount).sum();
+                line[2] = "" + storageUnits.stream().mapToInt(Item::getStorageUnitAmount).filter(Objects::nonNull).sum();
+
+                // we don't care about empty units
+                if (Integer.parseInt(line[2]) == 0) {
+                    return;
+                }
+
+                lines.add(line);
+            }
+        );
+
+        sortByColumn(lines, 2);
+        lines.forEach(storageUnitSheetBuilder::addRow);
+
+        writeWorkBookToFile("Storage_Units.xlsx", workBook);
+    }
+
+    private void sortByColumn(List<String[]> lines, int columnNumber) {
+        lines.sort(Comparator.comparingInt(a -> Integer.parseInt(a[columnNumber])));
+        Collections.reverse(lines);
     }
 
     private List<String[]> createLinesForItemSet(ItemSet set) {
         List<ItemName> allValidItemNames = itemService.getAllNamesForSet(set);
 
         List<String[]> lines = Collections.synchronizedList(new ArrayList<>());
-        List<String[]> finalLines = lines;
         AtomicInteger index = new AtomicInteger(1);
         String[] titleArray = new String[20];
 
@@ -287,10 +380,6 @@ public class DataWriter {
         titleArray[1] = "Total Amount";
 
         List<Exterior> exteriors = itemSetService.getExteriorsForItemSet(set);
-        if (exteriors.contains(Exterior.FACTORY_NEW) || exteriors.contains(Exterior.MINIMAL_WEAR) || exteriors.contains(Exterior.FIELD_TESTED) || exteriors.contains(Exterior.WELL_WORN) || exteriors.contains(Exterior.BATTLE_SCARRED)) {
-            exteriors.addAll(Exterior.getBaseExteriors());
-            exteriors = exteriors.stream().distinct().sorted(Comparator.comparingInt(Enum::ordinal)).collect(Collectors.toList());
-        }
 
         boolean setHasStatTrak = itemSetService.hasStatTrakForItemSet(set);
         boolean setHasSouvenir = itemSetService.hasSouvenirForItemSet(set);
@@ -319,21 +408,15 @@ public class DataWriter {
         }
 
         int totalAmount = allValidItemNames.size();
-        List<Exterior> finalExteriors = exteriors;
         allValidItemNames.parallelStream().forEach(itemName -> {
-            LOGGER.info("Currently mapping item " + index.getAndIncrement() + " of " + totalAmount + ": " + itemName);
-            List<Item> allItemsForName = itemService.getItemsForName(itemName);
+            LOGGER.info("Currently analysing item " + index.getAndIncrement() + " of " + totalAmount + ": " + itemName);
 
-            if (allItemsForName.size() == 0) {
-                return;
-            }
+            String[] currentLine = formatLineForItemName(itemName, setHasStatTrak, setHasSouvenir, exteriors);
 
-            String[] currentLine = formatLineForItems(itemName, allItemsForName, setHasStatTrak, setHasSouvenir, finalExteriors);
-
-            finalLines.add(currentLine);
+            lines.add(currentLine);
         });
 
-        lines = lines.stream().sorted(Comparator.comparingInt(v -> Integer.parseInt(((String[]) v)[1])).reversed()).collect(Collectors.toList());
+        sortByColumn(lines, 1);
         lines.add(0, titleArray);
 
         return lines;
@@ -350,73 +433,59 @@ public class DataWriter {
         allValidItemNames = allValidItemNames.stream().distinct().collect(Collectors.toList());
 
         List<String[]> lines = Collections.synchronizedList(new ArrayList<>());
-        List<String[]> finalLines = lines;
         AtomicInteger index = new AtomicInteger(1);
         int totalAmount = allValidItemNames.size();
         allValidItemNames.parallelStream().forEach(itemName -> {
-            LOGGER.info("Currently mapping item " + index.getAndIncrement() + " of " + totalAmount + ": " + itemName);
-            List<Item> allItemsForName = itemService.getItemsForName(itemName);
+            LOGGER.info("Currently analysing item " + index.getAndIncrement() + " of " + totalAmount + ": " + itemName);
 
-            if (allItemsForName.size() == 0) {
-                LOGGER.warn("No items for " + itemName.getName() + " found!");
-                return;
-            }
+            String[] currentLine = formatLineForItemName(itemName, false, false, null);
 
-            String[] currentLine = formatLineForItems(itemName, allItemsForName, false, false, null);
-
-            finalLines.add(currentLine);
+            lines.add(currentLine);
         });
 
         // sort by total amount
-        lines = lines.stream().sorted(Comparator.comparingInt(v -> Integer.parseInt(((String[]) v)[1])).reversed()).collect(Collectors.toList());
+        sortByColumn(lines, 1);
 
         return lines;
     }
 
-    private String[] formatLineForItems(ItemName itemName, List<Item> items, boolean hasStatTrak, boolean hasSouvenir, List<Exterior> possibleExteriors) {
+    private String[] formatLineForItemName(ItemName itemName, boolean hasStatTrak, boolean hasSouvenir, List<Exterior> possibleExteriors) {
         String[] line = new String[20];
         // name
         line[0] = itemName.getName();
         // total count
-        line[1] = "" + items.parallelStream().map(Item::getAmount).mapToInt(v -> v).sum();
+        line[1] = "" + itemService.getTotalAmountForName(itemName);
         // souvenir or stattrak count
 
-        if (hasSouvenir) {
-            int amount = items.parallelStream().map(item -> {
-                if (item.isSouvenir()) {
-                    return item.getAmount();
-                }
-                return 0;
-            }).mapToInt(v -> v).sum();
-            if (amount > 0) {
-                line[2] = "" + amount;
-            }
-        }
-
-        if (hasStatTrak) {
-            int amount = items.parallelStream().map(item -> {
-                if (item.isStatTrak()) {
-                    return item.getAmount();
-                }
-                return 0;
-            }).mapToInt(v -> v).sum();
+        if (hasSouvenir || hasStatTrak) {
+            long amount = itemService.getSouvenirOrStatTrakAmountForName(itemName);
             if (amount > 0) {
                 line[2] = "" + amount;
             }
         }
 
         // some items inside the collection might not have an exterior
-        if (possibleExteriors != null && items.get(0).getExterior() != null) {
+        if (possibleExteriors != null && itemService.itemNameHasExteriors(itemName)) {
             int index = 4;
             for (Exterior exterior : possibleExteriors) {
-                line[index++] = "" + items.parallelStream().filter(item -> item.getExterior() == exterior && !item.isSouvenir() && !item.isStatTrak()).map(Item::getAmount).mapToInt(v -> v).sum();
+                long amount = itemService.countForExteriorAndType(itemName, exterior, false, false);
+                if (amount > 0) {
+                    line[index++] = "" + amount;
+                } else {
+                    index++;
+                }
             }
 
             index++;
 
             if (hasSouvenir || hasStatTrak) {
                 for (Exterior exterior : possibleExteriors) {
-                    line[index++] = "" + items.parallelStream().filter(item -> item.getExterior() == exterior && (item.isSouvenir() || item.isStatTrak())).map(Item::getAmount).mapToInt(v -> v).sum();
+                    long amount = itemService.countForExteriorAndType(itemName, exterior, hasStatTrak, hasSouvenir);
+                    if (amount > 0) {
+                        line[index++] = "" + amount;
+                    } else {
+                        index++;
+                    }
                 }
             }
         }

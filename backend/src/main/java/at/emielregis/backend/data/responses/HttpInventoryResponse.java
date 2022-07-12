@@ -254,7 +254,7 @@ public class HttpInventoryResponse {
             return string.substring(10);
         }
         if (string.startsWith("★ StatTrak™ ")) {
-            return string.substring(12);
+            return string.substring(0, 2) + string.substring(12);
         }
         if (string.startsWith("Souvenir ")) {
             return string.substring(9);

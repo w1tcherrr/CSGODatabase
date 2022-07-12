@@ -3,7 +3,9 @@ package at.emielregis.backend.repository;
 import at.emielregis.backend.data.entities.Item;
 import at.emielregis.backend.data.entities.ItemName;
 import at.emielregis.backend.data.entities.ItemSet;
+import at.emielregis.backend.data.enums.Exterior;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -17,14 +19,14 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     Set<Long> getNormalItemIDs();
 
     @Query(
+        "SELECT count(distinct i.id) from CSGOInventory inv join inv.items i"
+    )
+    long normalItemCount();
+
+    @Query(
         "SELECT distinct i.id from Item i"
     )
     Set<Long> getAllItemIDs();
-
-    @Query(
-        "SELECT i from Item i where UPPER(i.name) LIKE UPPER(CONCAT('%',:search,'%'))"
-    )
-    List<Item> getSearch(@Param("search") String filter);
 
     @Query(
         "SELECT i from Item i where i.name = :name"
@@ -39,7 +41,7 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     @Query(
         "SELECT sum(i.storageUnitAmount * i.amount) from Item i where i.storageUnitAmount IS NOT NULL"
     )
-    long itemCountOnlyStorageUnits();
+    long itemCountInStorageUnits();
 
     @Query(
         "SELECT distinct i.name from Item i where i.itemSet = :set"
@@ -47,7 +49,58 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     List<ItemName> getAllNamesForSet(@Param("set") ItemSet set);
 
     @Query(
-            "SELECT i from Item i join i.stickers s where s.name like 'Sticker:%'"
+        "SELECT sum(i.amount) from Item i where i.name = :name"
     )
-    List<Item> getAllItemsWithInvalidStickers();
+    String getTotalAmountForName(@Param("name") ItemName itemName);
+
+    @Query(
+        "SELECT sum(i.amount) from Item i where i.name = :name and (i.souvenir = TRUE OR i.statTrak = TRUE)"
+    )
+    Long getSouvenirOrStatTrakAmountForName(@Param("name") ItemName itemName);
+
+    @Query(
+        "SELECT count(i) > 0 from Item i where i.exterior IS NOT NULL and i.name = :name"
+    )
+    boolean itemNameHasExteriors(@Param("name") ItemName itemName);
+
+    @Query(
+        "SELECT sum(i.amount) from Item i where i.exterior = :exterior and i.name = :name and i.souvenir = :souvenir and i.statTrak = :statTrak"
+    )
+    Long countForExteriorAndType(@Param("name") ItemName itemName, @Param("exterior") Exterior exterior, @Param("statTrak") boolean statTrak, @Param("souvenir") boolean souvenir);
+
+    @Query(
+        "Select sum(i.amount) from Item i where i.itemSet = :set"
+    )
+    Long countForSet(@Param("set") ItemSet set);
+
+    @Modifying
+    @Query(
+        "Delete from Item i where i.id = :id"
+    )
+    void deleteById(@Param("id") Long id);
+
+    @Query(
+        "Select count (i) from Item i where i.name.name = 'Storage Unit' and (i.nameTag IS NULL OR i.storageUnitAmount IS NULL OR i.storageUnitAmount = 0)"
+    )
+    long getTotalAmountOfStorageUnitsWithNoName();
+
+    @Query(
+        "Select distinct i.nameTag from Item i where i.name.name = 'Storage Unit' and i.nameTag IS NOT NULL"
+    )
+    List<String> getAllStorageUnitNameTags();
+
+    @Query(
+        "Select sum(i.amount) from Item i where i.name.name = 'Storage Unit' and i.nameTag = :nameTag"
+    )
+    long getAmountOfStorageUnitsWithNameTag(@Param("nameTag") String nameTag);
+
+    @Query(
+        "Select sum(case when i.storageUnitAmount IS NULL then 0 else i.storageUnitAmount end) from Item i where i.name.name = 'Storage Unit' and i.nameTag = :nameTag"
+    )
+    long getAmountOfItemsInStorageUnitsWithNameTag(@Param("nameTag") String nameTag);
+
+    @Query(
+        "Select i from Item i where i.name.name = 'Storage Unit' and i.nameTag = :nameTag"
+    )
+    List<Item> getStorageUnitsForNameTag(@Param("nameTag") String tag);
 }

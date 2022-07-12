@@ -27,4 +27,8 @@ public class ItemNameService {
         LOGGER.info("ItemNameService#count()");
         return itemNameRepository.count();
     }
+
+    public List<ItemName> getUnclassifiedStickerNames() {
+        return itemNameRepository.getUnclassifiedStickerNames();
+    }
 }
