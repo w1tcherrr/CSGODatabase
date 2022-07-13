@@ -29,11 +29,6 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     Set<Long> getAllItemIDs();
 
     @Query(
-        "SELECT i from Item i where i.name = :name"
-    )
-    List<Item> getItemsForName(@Param("name") ItemName name);
-
-    @Query(
         "SELECT sum(i.amount) from Item i"
     )
     long itemCountNoStorageUnits();
@@ -51,7 +46,12 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     @Query(
         "SELECT sum(i.amount) from Item i where i.name = :name"
     )
-    String getTotalAmountForName(@Param("name") ItemName itemName);
+    long getTotalAmountForName(@Param("name") ItemName itemName);
+
+    @Query(
+        "SELECT sum(i.amount) from Item i where i.name in :names"
+    )
+    long getTotalAmountForNames(@Param("names") List<ItemName> search);
 
     @Query(
         "SELECT sum(i.amount) from Item i where i.name = :name and (i.souvenir = TRUE OR i.statTrak = TRUE)"
@@ -85,22 +85,7 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     long getTotalAmountOfStorageUnitsWithNoName();
 
     @Query(
-        "Select distinct i.nameTag from Item i where i.name.name = 'Storage Unit' and i.nameTag IS NOT NULL"
+        "Select i from Item i where i.name.name = 'Storage Unit' and i.nameTag is NOT NULL and i.storageUnitAmount is NOT NULL and i.storageUnitAmount > 0"
     )
-    List<String> getAllStorageUnitNameTags();
-
-    @Query(
-        "Select sum(i.amount) from Item i where i.name.name = 'Storage Unit' and i.nameTag = :nameTag"
-    )
-    long getAmountOfStorageUnitsWithNameTag(@Param("nameTag") String nameTag);
-
-    @Query(
-        "Select sum(case when i.storageUnitAmount IS NULL then 0 else i.storageUnitAmount end) from Item i where i.name.name = 'Storage Unit' and i.nameTag = :nameTag"
-    )
-    long getAmountOfItemsInStorageUnitsWithNameTag(@Param("nameTag") String nameTag);
-
-    @Query(
-        "Select i from Item i where i.name.name = 'Storage Unit' and i.nameTag = :nameTag"
-    )
-    List<Item> getStorageUnitsForNameTag(@Param("nameTag") String tag);
+    List<Item> getAllNonEmptyStorageUnits();
 }

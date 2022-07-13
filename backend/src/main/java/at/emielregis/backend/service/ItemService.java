@@ -39,10 +39,6 @@ public class ItemService {
         itemRepository.saveAll(items);
     }
 
-    public List<Item> getItemsForName(ItemName itemName) {
-        return itemRepository.getItemsForName(itemName);
-    }
-
     public Set<Long> getAllItemIDs() {
         return itemRepository.getAllItemIDs();
     }
@@ -116,7 +112,7 @@ public class ItemService {
         return itemRepository.getAllNamesForSet(set);
     }
 
-    public String getTotalAmountForName(ItemName itemName) {
+    public long getTotalAmountForName(ItemName itemName) {
         return itemRepository.getTotalAmountForName(itemName);
     }
 
@@ -156,19 +152,11 @@ public class ItemService {
         return itemRepository.getTotalAmountOfStorageUnitsWithNoName();
     }
 
-    public List<String> getAllStorageUnitNameTags() {
-        return itemRepository.getAllStorageUnitNameTags();
+    public List<Item> getAllNonEmptyStorageUnits() {
+        return itemRepository.getAllNonEmptyStorageUnits();
     }
 
-    public long getAmountOfStorageUnitsWithNameTag(String nameTag) {
-        return itemRepository.getAmountOfStorageUnitsWithNameTag(nameTag);
-    }
-
-    public long getAmountOfItemsInStorageUnitsWithNameTag(String nameTag) {
-        return itemRepository.getAmountOfItemsInStorageUnitsWithNameTag(nameTag);
-    }
-
-    public List<Item> getStorageUnitsForNameTag(String tag) {
-        return itemRepository.getStorageUnitsForNameTag(tag);
+    public long getTotalAmountForNames(List<ItemName> search) {
+        return itemRepository.getTotalAmountForNames(search);
     }
 }

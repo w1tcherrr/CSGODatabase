@@ -26,8 +26,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
+import static at.emielregis.backend.runners.dataexport.DataWriterUtils.isAlreadyExported;
 import static at.emielregis.backend.runners.dataexport.DataWriterUtils.writeWorkBookToFile;
 
 @Component
@@ -42,7 +42,6 @@ public class DataWriter {
     private final SteamAccountService steamAccountService;
     private final StickerService stickerService;
     private final ItemCategoryService itemCategoryService;
-    private final List<Thread> threads = new ArrayList<>();
 
     public DataWriter(ItemService itemService,
                       ItemSetService itemSetService,
@@ -60,55 +59,49 @@ public class DataWriter {
         this.itemCategoryService = itemCategoryService;
     }
 
-    public void write() throws InterruptedException {
+    public void write() {
         LOGGER.info("Writing Data now");
 
         // write all raw data into a single file
-        runThread(this::writeAll);
+        writeAll("Combined_Data.xlsx");
 
         // write some miscellaneous data
-        runThread(this::writeMiscellaneous);
+        writeMiscellaneous("Miscellaneous_Data.xlsx");
 
         // write data for all majors
-        runThread(this::writeMajors);
+        writeMajors("Majors.xlsx");
 
         // write data for all collections
-        runThread(this::writeSouvenirCollections);
-        runThread(this::writeStickerCollections);
-        runThread(this::writePatches);
+        writeSouvenirCollections("Souvenir_Collections.xlsx");
+        writeStickerCollections("Sticker_Collections.xlsx");
+        writePatchCollections("Patch_Collections.xlsx");
 
         // write cases
-        runThread(this::writeCases);
+        writeCases("Cases.xlsx");
 
-        // write storage units
-        runThread(this::writeStorageUnits);
-
-        awaitAll();
+        // write storage unit names
+        writeStorageUnits("Storage_Units.xlsx");
     }
 
-    private void runThread(Runnable r) {
-        Thread t = new Thread(r);
-        threads.add(t);
-        t.start();
-    }
-
-    private void awaitAll() throws InterruptedException {
-        for (Thread t : threads) {
-            t.join();
+    private void writeAll(String fileName) {
+        if (isAlreadyExported(fileName)) {
+            LOGGER.info("All Data already extracted");
+            return;
         }
-    }
-
-    private void writeAll() {
         LOGGER.info("Writing All Data");
         Workbook workBook = new XSSFWorkbook();
         SheetBuilder builder = SheetBuilder.create(workBook, "Combined Data");
         builder.setTitleRow("Combined Data");
         builder.setDescriptionRow("Item Name", "Total Count");
         createLinesForItemSearch("").forEach(builder::addRow);
-        writeWorkBookToFile("Combined_Data.xlsx", workBook);
+        writeWorkBookToFile(fileName, workBook);
     }
 
-    private void writeMiscellaneous() {
+    private void writeMiscellaneous(String fileName) {
+        if (isAlreadyExported(fileName)) {
+            LOGGER.info("Miscellaneous Data already extracted");
+            return;
+        }
         LOGGER.info("Writing miscellaneous Data");
 
         Workbook workBook = new XSSFWorkbook();
@@ -148,10 +141,14 @@ public class DataWriter {
 
         builder.addRow("Total applied stickers:", "" + (stickerService.appliedStickerCount()));
 
-        writeWorkBookToFile("Miscellaneous_Data.xlsx", workBook);
+        writeWorkBookToFile(fileName, workBook);
     }
 
-    private void writeMajors() {
+    private void writeMajors(String fileName) {
+        if (isAlreadyExported(fileName)) {
+            LOGGER.info("Major Data already extracted");
+            return;
+        }
         LOGGER.info("Writing Major Data");
         List<String[]> majorList = List.of(
             new String[]{"Antwerp 2022", "Antwerp 2022"},
@@ -176,6 +173,20 @@ public class DataWriter {
 
         Workbook workBook = new XSSFWorkbook();
 
+        SheetBuilder overviewBuilder = SheetBuilder.create(workBook, "Overview");
+        overviewBuilder.setTitleRow("Overview");
+        overviewBuilder.setDescriptionRow("Major", "Total Amount of Items from all collections (excluding storage units!)");
+        overviewBuilder.emptyLines(1);
+
+        for (String[] strings : majorList) {
+            LOGGER.info("Mapping total amount for major {}", strings[0]);
+            String[] currentRow = new String[2];
+            currentRow[0] = strings[0];
+            String[] stringCopy = Arrays.copyOfRange(strings, 1, strings.length);
+            currentRow[1] = "" + itemService.getTotalAmountForNames(itemNameService.getSearch(stringCopy));
+            overviewBuilder.addRow(currentRow);
+        }
+
         for (String[] strings : majorList) {
             SheetBuilder builder = SheetBuilder.create(workBook, strings[0]);
             String[] searches = Arrays.copyOfRange(strings, 1, strings.length);
@@ -184,13 +195,34 @@ public class DataWriter {
             createLinesForItemSearch(searches).forEach(builder::addRow);
         }
 
-        writeWorkBookToFile("Major_Collections.xlsx", workBook);
+        writeWorkBookToFile(fileName, workBook);
     }
 
-    private void writeSouvenirCollections() {
+    private void writeSouvenirCollections(String fileName) {
+        if (isAlreadyExported(fileName)) {
+            LOGGER.info("Souvenir Data already extracted");
+            return;
+        }
         Workbook workBook = new XSSFWorkbook();
 
         List<ItemSet> collectionSets = itemSetService.getAllSouvenirCollections();
+
+        SheetBuilder overviewBuilder = SheetBuilder.create(workBook, "Overview");
+        overviewBuilder.setTitleRow("Overview");
+        overviewBuilder.setDescriptionRow("Collection", "Total Amount of items");
+
+        List<String[]> overviewLines = Collections.synchronizedList(new ArrayList<>());
+
+        for (ItemSet set : collectionSets) {
+            LOGGER.info("Mapping total amount for itemSet {}", set.getName());
+            String[] currentRow = new String[2];
+            currentRow[0] = set.getName();
+            currentRow[1] = "" + itemService.getTotalAmountForSet(set);
+            overviewLines.add(currentRow);
+        }
+
+        sortByColumn(overviewLines, 1);
+        overviewLines.forEach(overviewBuilder::addRow);
 
         for (ItemSet set : collectionSets) {
             SheetBuilder builder = SheetBuilder.create(workBook, set.getName());
@@ -200,10 +232,14 @@ public class DataWriter {
             lines.subList(1, lines.size()).forEach(builder::addRow);
         }
 
-        writeWorkBookToFile("Souvenir_Collections.xlsx", workBook);
+        writeWorkBookToFile(fileName, workBook);
     }
 
-    private void writeStickerCollections() {
+    private void writeStickerCollections(String fileName) {
+        if (isAlreadyExported(fileName)) {
+            LOGGER.info("Sticker Data already extracted");
+            return;
+        }
         LOGGER.info("Writing Sticker Collections");
         Workbook workBook = new XSSFWorkbook();
 
@@ -213,12 +249,14 @@ public class DataWriter {
         overviewBuilder.setTitleRow("Overview");
         overviewBuilder.setDescriptionRow("Collection", "Total Amount (Non applied)", "Total Amount (Applied)");
 
-        List<String[]> rows = new ArrayList<>();
+        List<String[]> rows = Collections.synchronizedList(new ArrayList<>());
         AtomicInteger current = new AtomicInteger();
-        for (ItemSet set : stickerSets) {
-            LOGGER.info("Currently mapping total amounts of set " + current.incrementAndGet() + "/" + stickerSets.size() + ": " + set.getName());
-            rows.add(new String[]{set.getName(), "" + itemService.getTotalAmountForSet(set), "" + stickerService.getTotalAppliedForSet(set)});
-        }
+        AtomicInteger finalCurrent1 = current;
+        List<String[]> finalRows1 = rows;
+        stickerSets.parallelStream().forEach(set -> {
+            LOGGER.info("Currently mapping total amounts of set " + finalCurrent1.incrementAndGet() + "/" + stickerSets.size() + ": " + set.getName());
+            finalRows1.add(new String[]{set.getName(), "" + itemService.getTotalAmountForSet(set), "" + stickerService.getTotalAppliedForSet(set)});
+        });
 
         sortByColumn(rows, 1);
         rows.forEach(overviewBuilder::addRow);
@@ -227,17 +265,19 @@ public class DataWriter {
 
         SheetBuilder unclassifiedBuilder = SheetBuilder.create(workBook, "Unclassified");
         unclassifiedBuilder.setTitleRow("Unclassified Stickers");
-        unclassifiedBuilder.setDescriptionRow("Item Name", "Total Amount");
+        unclassifiedBuilder.setDescriptionRow("Item Name", "Total Amount (Non applied, including Capsules)", "Total Amount (Applied)");
 
         List<ItemName> unclassifiedStickerNames = itemNameService.getUnclassifiedStickerNames();
 
-        rows = new ArrayList<>();
+        rows = Collections.synchronizedList(new ArrayList<>());
         List<String[]> finalRows = rows;
         current = new AtomicInteger();
         AtomicInteger finalCurrent = current;
-        unclassifiedStickerNames.forEach(name -> {
+        unclassifiedStickerNames.parallelStream().forEach(name -> {
             LOGGER.info("Currently mapping item " + finalCurrent.incrementAndGet() + "/" + unclassifiedStickerNames.size() + ": " + name.getName());
-            finalRows.add(formatLineForItemName(name, false, false, List.of()));
+            String[] row = formatLineForItemName(name, false, false, List.of());
+            row[2] = "" + stickerService.getTotalAppliedForItemName(name.getName());
+            finalRows.add(row);
         });
 
         sortByColumn(rows, 1);
@@ -247,16 +287,20 @@ public class DataWriter {
             SheetBuilder builder = SheetBuilder.create(workBook, set.getName());
             List<String[]> lines = createLinesForItemSet(set);
             builder.setTitleRow(set.getName());
-            builder.setDescriptionRow(lines.get(0));
+            builder.setDescriptionRow("Item Name", "Total Amount (Non applied, including Capsules)", "Total Amount (Applied)");
             lines = lines.subList(1, lines.size());
             lines.forEach(line -> line[2] = "" + stickerService.getTotalAppliedForItemName(line[0]));
             lines.forEach(builder::addRow);
         }
 
-        writeWorkBookToFile("Sticker_Collections.xlsx", workBook);
+        writeWorkBookToFile(fileName, workBook);
     }
 
-    private void writePatches() {
+    private void writePatchCollections(String fileName) {
+        if (isAlreadyExported(fileName)) {
+            LOGGER.info("Patch Data already extracted");
+            return;
+        }
         LOGGER.info("Writing Patch Collections");
         Workbook workBook = new XSSFWorkbook();
 
@@ -284,17 +328,21 @@ public class DataWriter {
             lines.subList(1, lines.size()).forEach(builder::addRow);
         }
 
-        writeWorkBookToFile("Patch_Collections.xlsx", workBook);
+        writeWorkBookToFile(fileName, workBook);
     }
 
-    private void writeCases() {
+    private void writeCases(String fileName) {
+        if (isAlreadyExported(fileName)) {
+            LOGGER.info("Case Data already extracted");
+            return;
+        }
         Workbook workBook = new XSSFWorkbook();
 
         List<ItemSet> caseSets = itemSetService.getAllCaseCollections();
 
         SheetBuilder overviewBuilder = SheetBuilder.create(workBook, "Overview");
         overviewBuilder.setTitleRow("Overview");
-        overviewBuilder.setDescriptionRow("Item Name", "Amount of Cases", "Total amount of items from Collection");
+        overviewBuilder.setDescriptionRow("Item Name", "Amount of Cases", "Total amount of items from collection (including cases)");
 
         List<String[]> overviewLines = new ArrayList<>();
         for (ItemSet set : caseSets) {
@@ -317,11 +365,15 @@ public class DataWriter {
             lines.subList(1, lines.size()).forEach(builder::addRow);
         }
 
-        writeWorkBookToFile("Case_Collections.xlsx", workBook);
+        writeWorkBookToFile(fileName, workBook);
     }
 
     @Transactional
-    protected void writeStorageUnits() {
+    protected void writeStorageUnits(String fileName) {
+        if (isAlreadyExported(fileName)) {
+            LOGGER.info("Storage Unit Data already extracted");
+            return;
+        }
         Workbook workBook = new XSSFWorkbook();
 
         SheetBuilder storageUnitSheetBuilder = SheetBuilder.create(workBook, "Overview");
@@ -333,7 +385,9 @@ public class DataWriter {
 
         List<String[]> lines = Collections.synchronizedList(new ArrayList<>());
 
-        List<String> nameTags = itemService.getAllStorageUnitNameTags().stream().sorted(Comparator.comparing(str -> str)).toList();
+        List<Item> allStorageUnits = itemService.getAllNonEmptyStorageUnits();
+        List<String> nameTags = allStorageUnits.stream().map(Item::getNameTag).distinct().toList();
+
         AtomicInteger index = new AtomicInteger(-1);
         int size = nameTags.size();
         nameTags.parallelStream().forEach(tag -> {
@@ -341,11 +395,9 @@ public class DataWriter {
                     LOGGER.info("Mapped " + index.get() + " names of " + size);
                 }
                 String[] line = new String[3];
-                line[0] = tag;
 
-                // ironically fetching the entities and counting via java instead of in the database is more efficient here
-                // due to the big size of the table. The count query takes up twice as much time.
-                List<Item> storageUnits = itemService.getStorageUnitsForNameTag(tag);
+                List<Item> storageUnits = allStorageUnits.stream().filter(unit -> unit.getNameTag().equals(tag)).toList();
+                line[0] = tag;
                 line[1] = "" + storageUnits.stream().mapToInt(Item::getAmount).sum();
                 line[2] = "" + storageUnits.stream().mapToInt(Item::getStorageUnitAmount).filter(Objects::nonNull).sum();
 
@@ -358,10 +410,14 @@ public class DataWriter {
             }
         );
 
+        // first sort alphabetically and then by the total amount - due to it being stable amount of same size will be alphabetically sorted
+        lines.sort(Comparator.comparing(v -> v[0]));
+        Collections.reverse(lines);
         sortByColumn(lines, 2);
+
         lines.forEach(storageUnitSheetBuilder::addRow);
 
-        writeWorkBookToFile("Storage_Units.xlsx", workBook);
+        writeWorkBookToFile(fileName, workBook);
     }
 
     private void sortByColumn(List<String[]> lines, int columnNumber) {
@@ -424,13 +480,7 @@ public class DataWriter {
 
     @Transactional
     List<String[]> createLinesForItemSearch(String... filters) {
-        List<ItemName> allValidItemNames = new ArrayList<>();
-
-        for (String filter : filters) {
-            allValidItemNames.addAll(itemNameService.getSearch(filter));
-        }
-
-        allValidItemNames = allValidItemNames.stream().distinct().collect(Collectors.toList());
+        List<ItemName> allValidItemNames = itemNameService.getSearch(filters);
 
         List<String[]> lines = Collections.synchronizedList(new ArrayList<>());
         AtomicInteger index = new AtomicInteger(1);

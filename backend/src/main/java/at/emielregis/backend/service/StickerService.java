@@ -33,6 +33,6 @@ public record StickerService(StickerRepository stickerRepository, ItemNameReposi
     }
 
     public long getTotalAppliedForItemName(String itemNameName) {
-        return stickerRepository.countAppliedForItemName(itemNameName);
+        return stickerRepository.countAppliedForItemName(itemNameName.substring(10));
     }
 }

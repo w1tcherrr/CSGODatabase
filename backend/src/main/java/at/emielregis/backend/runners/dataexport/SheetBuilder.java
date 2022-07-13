@@ -77,10 +77,11 @@ public class SheetBuilder {
         for (int i = 0; i < text.length; i++) {
             Cell cell = row.createCell(i);
             String value = text[i];
-            if (DataWriterUtils.isNumber(value)) {
-                value = DataWriterUtils.formatNumber(Long.parseLong(value));
-            } else if (!StringUtils.isEmpty(value) && value.trim().equals("0")) {
+            if (!StringUtils.isEmpty(value) && value.trim().equals("0")) {
                 value = null;
+            }
+            if (value != null && DataWriterUtils.isNumber(value)) {
+                value = DataWriterUtils.formatNumber(Long.parseLong(value));
             }
             cell.setCellValue(value != null ? value : "");
         }

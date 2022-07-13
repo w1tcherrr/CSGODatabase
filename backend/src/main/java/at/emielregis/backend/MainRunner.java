@@ -26,7 +26,7 @@ public class MainRunner implements ApplicationContextAware {
      * Runs the DataWriter, which writes all data to excel files.
      */
     @EventListener(ApplicationReadyEvent.class)
-    public void run() throws InterruptedException {
+    public void run() {
         csgoAccountMapper.start();
         dataWriter.write();
         exit();

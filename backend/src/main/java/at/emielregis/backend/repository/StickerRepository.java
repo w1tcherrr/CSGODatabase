@@ -27,7 +27,7 @@ public interface StickerRepository extends JpaRepository<Sticker, Long> {
     long countAppliedForSet(@Param("set") ItemSet set);
 
     @Query(
-        "select count (s) from Item i join i.stickers s where s.name = concat('Sticker | ', :name)"
+        "select count (s) from Item i join i.stickers s where s.name = :name"
     )
     long countAppliedForItemName(@Param("name") String name);
 }

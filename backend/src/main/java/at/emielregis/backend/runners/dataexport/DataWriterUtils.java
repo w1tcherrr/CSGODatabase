@@ -13,22 +13,29 @@ import java.lang.invoke.MethodHandles;
 
 public class DataWriterUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private static final String DIRECTORY_PATH = "C:\\Users\\mitch\\Documents\\GitHub\\CSGODatabaseSpring\\output";
 
     public static synchronized void writeWorkBookToFile(String fileName, Workbook workbook) {
         LOGGER.info("Writing file " + fileName);
 
         SheetBuilder.getBuildersForWorkbook(workbook).forEach(SheetBuilder::build);
 
-        String directoryName = "C:\\Users\\mitch\\Documents\\GitHub\\CSGODatabaseSpring\\output";
+        if(!new File(DIRECTORY_PATH).mkdir()) {
+            throw new RuntimeException("Output directory could not be created! Please check whether the process has permission and the path is correct.") ;
+        }
 
-        new File(directoryName).mkdir();
-        File file = new File(directoryName, fileName);
+        File file = new File(DIRECTORY_PATH, fileName);
 
         try (OutputStream outputWriter = new FileOutputStream(file)) {
             workbook.write(outputWriter);
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public static boolean isAlreadyExported(String fileName) {
+        File file = new File(DIRECTORY_PATH, fileName);
+        return file.exists();
     }
 
     public static boolean isNumber(String cellValue) {

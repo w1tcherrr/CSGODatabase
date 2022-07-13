@@ -121,7 +121,7 @@ public class HttpInventoryResponse {
                                             if (i < split.length - 1) {
                                                 if (!stickerName.endsWith("Don't Worry") ||
                                                     (stickerName.endsWith("Don't Worry") && split[i + 1].endsWith("I'm Pro"))) {
-                                                    stickerName += split[i + 1];
+                                                    stickerName += "," + split[i + 1];
                                                     stickerName = stickerName.trim();
                                                     ++i; // skip next iteration
                                                 }
@@ -136,7 +136,7 @@ public class HttpInventoryResponse {
                                         if (stickerName.endsWith("Rock")) {
                                             if (i < split.length - 2) {
                                                 if (split[i + 1].equals(" Paper")) {
-                                                    stickerName = stickerName + split[i + 1] + split[i + 2];
+                                                    stickerName = stickerName + "," + split[i + 1] + "," + split[i + 2];
                                                     stickerName = stickerName.trim();
                                                     i += 2; // skip next 2 iterations
                                                 }

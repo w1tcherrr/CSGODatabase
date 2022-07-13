@@ -7,7 +7,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class ItemNameService {
@@ -19,8 +21,12 @@ public class ItemNameService {
         this.itemNameRepository = itemNameRepository;
     }
 
-    public List<ItemName> getSearch(String filter) {
-        return itemNameRepository.getSearch(filter);
+    public List<ItemName> getSearch(String... filters) {
+        List<ItemName> names = new ArrayList<>();
+        for (String filter : filters) {
+            names.addAll(itemNameRepository.getSearch(filter));
+        }
+        return names.stream().distinct().collect(Collectors.toList());
     }
 
     public long count() {
