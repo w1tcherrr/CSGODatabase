@@ -62,11 +62,11 @@ public class DataWriter {
     public void write() {
         LOGGER.info("Writing Data now");
 
-        // write all raw data into a single file
-        writeAll("Combined_Data.xlsx");
-
         // write some miscellaneous data
         writeMiscellaneous("Miscellaneous_Data.xlsx");
+
+        // write all raw data into a single file
+        writeAll("Combined_Data.xlsx");
 
         // write data for all majors
         writeMajors("Majors.xlsx");
@@ -209,15 +209,16 @@ public class DataWriter {
 
         SheetBuilder overviewBuilder = SheetBuilder.create(workBook, "Overview");
         overviewBuilder.setTitleRow("Overview");
-        overviewBuilder.setDescriptionRow("Collection", "Total Amount of items");
+        overviewBuilder.setDescriptionRow("Collection", "Amount of Packages", "Amount of Skins");
 
         List<String[]> overviewLines = Collections.synchronizedList(new ArrayList<>());
 
         for (ItemSet set : collectionSets) {
             LOGGER.info("Mapping total amount for itemSet {}", set.getName());
-            String[] currentRow = new String[2];
+            String[] currentRow = new String[3];
             currentRow[0] = set.getName();
-            currentRow[1] = "" + itemService.getTotalAmountForSet(set);
+            currentRow[1] = "" + itemService.getTotalAmountOfContainersForSet(set);
+            currentRow[2] = "" + itemService.getTotalAmountForSetNoContainers(set);
             overviewLines.add(currentRow);
         }
 
@@ -247,7 +248,7 @@ public class DataWriter {
 
         SheetBuilder overviewBuilder = SheetBuilder.create(workBook, "Overview");
         overviewBuilder.setTitleRow("Overview");
-        overviewBuilder.setDescriptionRow("Collection", "Total Amount (Non applied)", "Total Amount (Applied)");
+        overviewBuilder.setDescriptionRow("Collection", "Total Amount (Capsules)", "Total Amount (Non applied)", "Total Amount (Applied)");
 
         List<String[]> rows = Collections.synchronizedList(new ArrayList<>());
         AtomicInteger current = new AtomicInteger();
@@ -255,7 +256,7 @@ public class DataWriter {
         List<String[]> finalRows1 = rows;
         stickerSets.parallelStream().forEach(set -> {
             LOGGER.info("Currently mapping total amounts of set " + finalCurrent1.incrementAndGet() + "/" + stickerSets.size() + ": " + set.getName());
-            finalRows1.add(new String[]{set.getName(), "" + itemService.getTotalAmountForSet(set), "" + stickerService.getTotalAppliedForSet(set)});
+            finalRows1.add(new String[]{set.getName(), "" + itemService.getTotalAmountOfContainersForSet(set), "" + itemService.getTotalAmountForSetNoContainers(set), "" + stickerService.getTotalAppliedForSet(set)});
         });
 
         sortByColumn(rows, 1);
@@ -265,7 +266,7 @@ public class DataWriter {
 
         SheetBuilder unclassifiedBuilder = SheetBuilder.create(workBook, "Unclassified");
         unclassifiedBuilder.setTitleRow("Unclassified Stickers");
-        unclassifiedBuilder.setDescriptionRow("Item Name", "Total Amount (Non applied, including Capsules)", "Total Amount (Applied)");
+        unclassifiedBuilder.setDescriptionRow("Item Name", "Total Amount (Non applied)", "Total Amount (Applied)");
 
         List<ItemName> unclassifiedStickerNames = itemNameService.getUnclassifiedStickerNames();
 
@@ -287,7 +288,7 @@ public class DataWriter {
             SheetBuilder builder = SheetBuilder.create(workBook, set.getName());
             List<String[]> lines = createLinesForItemSet(set);
             builder.setTitleRow(set.getName());
-            builder.setDescriptionRow("Item Name", "Total Amount (Non applied, including Capsules)", "Total Amount (Applied)");
+            builder.setDescriptionRow("Item Name", "Total Amount (Non applied)", "Total Amount (Applied)");
             lines = lines.subList(1, lines.size());
             lines.forEach(line -> line[2] = "" + stickerService.getTotalAppliedForItemName(line[0]));
             lines.forEach(builder::addRow);
@@ -308,13 +309,13 @@ public class DataWriter {
 
         SheetBuilder overviewBuilder = SheetBuilder.create(workBook, "Overview");
         overviewBuilder.setTitleRow("Overview");
-        overviewBuilder.setDescriptionRow("Collection", "Total Amount");
+        overviewBuilder.setDescriptionRow("Collection", "Total Amount (Containers)", "Total Amount (Patches)");
 
         List<String[]> rows = new ArrayList<>();
         AtomicInteger current = new AtomicInteger();
         for (ItemSet set : patchSets) {
             LOGGER.info("Currently mapping total amount of set " + current.incrementAndGet() + "/" + patchSets.size() + ": " + set.getName());
-            rows.add(new String[]{set.getName(), "" + itemService.getTotalAmountForSet(set)});
+            rows.add(new String[]{set.getName(), "" + itemService.getTotalAmountOfContainersForSet(set), "" + itemService.getTotalAmountForSetNoContainers(set)});
         }
 
         sortByColumn(rows, 1);
@@ -342,14 +343,14 @@ public class DataWriter {
 
         SheetBuilder overviewBuilder = SheetBuilder.create(workBook, "Overview");
         overviewBuilder.setTitleRow("Overview");
-        overviewBuilder.setDescriptionRow("Item Name", "Amount of Cases", "Total amount of items from collection (including cases)");
+        overviewBuilder.setDescriptionRow("Item Name", "Total Amount (Cases)", "Total Amount (Skins)");
 
         List<String[]> overviewLines = new ArrayList<>();
         for (ItemSet set : caseSets) {
             List<ItemName> allValidItemNames = itemService.getAllNamesForSet(set);
             for (ItemName name : allValidItemNames) {
                 if (name.getName().matches(".* Case ?[23]?")) {
-                    overviewLines.add(new String[]{name.getName(), "" + itemService.getTotalAmountForName(name), "" + itemService.getTotalAmountForSet(set)});
+                    overviewLines.add(new String[]{name.getName(), "" + itemService.getTotalAmountOfContainersForSet(set), "" + itemService.getTotalAmountForSetNoContainers(set)});
                 }
             }
         }

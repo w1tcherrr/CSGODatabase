@@ -14,10 +14,8 @@ import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -144,27 +142,29 @@ public class SheetBuilder {
         }
 
         // auto size all columns
-        for (int i = 0; i < 20; i++) {
-            int finalI = i;
-            int maxChars = rows.stream().map(row -> row.getCell(finalI)).filter(Objects::nonNull).map(Cell::getStringCellValue).filter(Objects::nonNull).map(String::length).max(Comparator.comparingInt(v -> v)).orElse(-1);
+        for (int i = 0; i <= getLastValidColumn(); i++) {
+            sheet.autoSizeColumn(i);
+            if (sheet.getColumnWidth(i) > 768) {
+                sheet.setColumnWidth(i, (int) (sheet.getColumnWidth(i) * 1.1));
+            } else {
+                sheet.setColumnWidth(i, 768);
+            }
+        }
+    }
 
-            // if the title is longer than any value in the cells
-            if (hasDescriptionRow) {
-                Row descriptionRow = rows.get(hasTitleRow ? 1 : 0);
-                if (descriptionRow.getCell(i) != null) {
-                    if (descriptionRow.getCell(i).getStringCellValue().length() > maxChars) {
-                        maxChars = descriptionRow.getCell(i).getStringCellValue().length();
+    private int getLastValidColumn() {
+        int lastValidColumn = 0;
+        for (Row row : rows) {
+            for (int i = 0; i < 20; i++) {
+                Cell cell = row.getCell(i);
+                if (cell != null && !StringUtils.isBlank(cell.getStringCellValue())) {
+                    if (i > lastValidColumn) {
+                        lastValidColumn = i;
                     }
                 }
             }
-
-            // in this case there is no data in this column, so we don't edit the column
-            if (maxChars <= 0) {
-                maxChars = 3;
-            }
-
-            sheet.setColumnWidth(i, (int) (maxChars * 1.35) * 256);
         }
+        return lastValidColumn;
     }
 
     private void setRowStyle(Row row, CellStyle style) {

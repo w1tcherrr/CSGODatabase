@@ -1,6 +1,7 @@
 package at.emielregis.backend.repository;
 
 import at.emielregis.backend.data.entities.Item;
+import at.emielregis.backend.data.entities.ItemCategory;
 import at.emielregis.backend.data.entities.ItemName;
 import at.emielregis.backend.data.entities.ItemSet;
 import at.emielregis.backend.data.enums.Exterior;
@@ -69,9 +70,14 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     Long countForExteriorAndType(@Param("name") ItemName itemName, @Param("exterior") Exterior exterior, @Param("statTrak") boolean statTrak, @Param("souvenir") boolean souvenir);
 
     @Query(
-        "Select sum(i.amount) from Item i where i.itemSet = :set"
+        "Select sum(i.amount) from Item i where i.itemSet = :set and i.category not in :containerCategories"
     )
-    Long countForSet(@Param("set") ItemSet set);
+    Long countForSetNoContainers(@Param("set") ItemSet set, @Param("containerCategories") List<ItemCategory> containerCategories);
+
+    @Query(
+        "Select sum(i.amount) from Item i where i.itemSet = :set and i.category in :containerCategories"
+    )
+    Long countContainersForSet(@Param("set") ItemSet set, @Param("containerCategories") List<ItemCategory> containerCategories);
 
     @Modifying
     @Query(

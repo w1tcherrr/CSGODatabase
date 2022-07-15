@@ -2,6 +2,7 @@ package at.emielregis.backend.service;
 
 import at.emielregis.backend.data.dtos.TransientItem;
 import at.emielregis.backend.data.entities.Item;
+import at.emielregis.backend.data.entities.ItemCategory;
 import at.emielregis.backend.data.entities.ItemName;
 import at.emielregis.backend.data.entities.ItemSet;
 import at.emielregis.backend.data.enums.Exterior;
@@ -26,13 +27,16 @@ public class ItemService {
     private final ItemRepository itemRepository;
     private final Mapper mapper;
     private final EntityManager entityManager;
+    private final ItemCategoryService itemCategoryService;
 
     public ItemService(ItemRepository itemRepository,
+                       ItemCategoryService itemCategoryService,
                        Mapper mapper,
                        EntityManager entityManager) {
         this.itemRepository = itemRepository;
         this.mapper = mapper;
         this.entityManager = entityManager;
+        this.itemCategoryService = itemCategoryService;
     }
 
     public void saveAll(List<Item> items) {
@@ -136,8 +140,18 @@ public class ItemService {
         return amount;
     }
 
-    public long getTotalAmountForSet(ItemSet set) {
-        Long amount = itemRepository.countForSet(set);
+    public long getTotalAmountForSetNoContainers(ItemSet set) {
+        List<ItemCategory> containerCategories = itemCategoryService.getAllContainerCategories();
+        Long amount = itemRepository.countForSetNoContainers(set, containerCategories);
+        if (amount == null) {
+            return 0;
+        }
+        return amount;
+    }
+
+    public long getTotalAmountOfContainersForSet(ItemSet set) {
+        List<ItemCategory> containerCategories = itemCategoryService.getAllContainerCategories();
+        Long amount = itemRepository.countContainersForSet(set, containerCategories);
         if (amount == null) {
             return 0;
         }

@@ -100,7 +100,9 @@ public record ItemSetService(ItemSetRepository itemSetRepository) {
     public List<ItemSet> getAllSouvenirCollections() {
         return searchBySubstring("Mirage", "Dust II", "Ancient", "Inferno",
             "Overpass", "Nuke", "Vertigo", "Cache", "Cobblestone", "Train", "Souvenir")
-            .stream().sorted(Comparator.comparing(ItemSet::getName)).collect(Collectors.toList());
+            .stream().sorted(Comparator.comparing(ItemSet::getName))
+            .filter(col -> !col.getName().contains("2021 Train")) // this is not a souvenir collection and was in the riptide shop
+            .collect(Collectors.toList());
     }
 
     public List<ItemSet> getAllStickerCollections() {

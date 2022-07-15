@@ -20,8 +20,11 @@ public class DataWriterUtils {
 
         SheetBuilder.getBuildersForWorkbook(workbook).forEach(SheetBuilder::build);
 
-        if(!new File(DIRECTORY_PATH).mkdir()) {
-            throw new RuntimeException("Output directory could not be created! Please check whether the process has permission and the path is correct.") ;
+        File directory = new File(DIRECTORY_PATH);
+        if (!directory.exists()) {
+            if (!new File(DIRECTORY_PATH).mkdir()) {
+                throw new RuntimeException("Output directory could not be created! Please check whether the process has permission and the path is correct.");
+            }
         }
 
         File file = new File(DIRECTORY_PATH, fileName);
