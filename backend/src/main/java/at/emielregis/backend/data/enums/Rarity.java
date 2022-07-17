@@ -1,28 +1,40 @@
 package at.emielregis.backend.data.enums;
 
+import org.apache.poi.ss.usermodel.IndexedColors;
+
 public enum Rarity {
-    STOCK,                  // STOCK ITEMS
-    CONSUMER_GRADE,         // WHITE
-    INDUSTRIAL_GRADE,       // LIGHT BLUE
-    MIL_SPEC,               // BLUE
-    RESTRICTED,             // PURPLE
-    CLASSIFIED,             // PINK
-    COVERT,                 // RED
+    STOCK(IndexedColors.GREY_40_PERCENT),           // STOCK ITEMS
+    CONSUMER_GRADE(IndexedColors.WHITE),            // WHITE
+    INDUSTRIAL_GRADE(IndexedColors.AQUA),           // LIGHT BLUE
+    MIL_SPEC(IndexedColors.LIGHT_BLUE),             // BLUE
+    RESTRICTED(IndexedColors.VIOLET),               // PURPLE
+    CLASSIFIED(IndexedColors.PINK),                 // PINK
+    COVERT(IndexedColors.RED),                      // RED
 
-    CONTRABAND,             // DISCONTINUED, HOWL STICKER
+    CONTRABAND(IndexedColors.LIGHT_ORANGE),         // DISCONTINUED, HOWL STICKER
 
-    EXTRAORDINARY,          // GOLD (STICKERS, GLOVES, KNIFES, ETC.)
+    EXTRAORDINARY(IndexedColors.GOLD),              // GOLD (STICKERS, GLOVES, KNIFES, ETC.)
 
-    BASE_GRADE,             // CONTAINERS LIKE STICKER CAPSULES
+    BASE_GRADE(null),                    // CONTAINERS LIKE STICKER CAPSULES
 
-    HIGH_GRADE,             // NORMAL STICKERS
-    REMARKABLE,             // HOLO STICKERS
-    EXOTIC,                 // FOIL STICKERS
+    HIGH_GRADE(IndexedColors.GREY_40_PERCENT),      // NORMAL STICKERS
+    REMARKABLE(IndexedColors.VIOLET),               // HOLO STICKERS
+    EXOTIC(IndexedColors.PINK),                     // FOIL STICKERS
 
-    DISTINGUISHED,          // AGENTS
-    EXCEPTIONAL,            // AGENTS
-    SUPERIOR,               // AGENTS
-    MASTER;                 // AGENTS
+    DISTINGUISHED(IndexedColors.LIGHT_BLUE),        // AGENTS
+    EXCEPTIONAL(IndexedColors.VIOLET),              // AGENTS
+    SUPERIOR(IndexedColors.PINK),                   // AGENTS
+    MASTER(IndexedColors.RED);                      // AGENTS
+
+    private final IndexedColors indexedColor;
+
+    Rarity(IndexedColors indexedColor) {
+        this.indexedColor = indexedColor;
+    }
+
+    public IndexedColors getColor() {
+        return indexedColor;
+    }
 
     public static Rarity of(String value) {
         return switch (value) {

@@ -1,6 +1,7 @@
 package at.emielregis.backend.service;
 
 import at.emielregis.backend.data.entities.ItemName;
+import at.emielregis.backend.data.enums.Rarity;
 import at.emielregis.backend.repository.ItemNameRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,6 +24,7 @@ public class ItemNameService {
     }
 
     public List<ItemName> getSearch(String... filters) {
+        LOGGER.info("ItemNameService#getSearch(" + Arrays.toString(filters) + ")");
         List<ItemName> names = new ArrayList<>();
         for (String filter : filters) {
             names.addAll(itemNameRepository.getSearch(filter));
@@ -35,6 +38,12 @@ public class ItemNameService {
     }
 
     public List<ItemName> getUnclassifiedStickerNames() {
+        LOGGER.info("ItemNameService#getUnclassifiedStickerNames()");
         return itemNameRepository.getUnclassifiedStickerNames();
+    }
+
+    public Rarity getRarityForItemNameName(String itemNameName) {
+        LOGGER.info("ItemNameService#getRarityForItemNameName(" + itemNameName + ")");
+        return itemNameRepository.getRarityForItemNameName(itemNameName);
     }
 }

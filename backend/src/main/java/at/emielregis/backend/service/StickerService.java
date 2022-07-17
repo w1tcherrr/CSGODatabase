@@ -13,26 +13,42 @@ import java.lang.invoke.MethodHandles;
 public record StickerService(StickerRepository stickerRepository, ItemNameRepository itemNameRepository) {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    public long appliedStickerCount() {
-        LOGGER.info("StickerService#appliedStickerCount()");
-        return stickerRepository.appliedStickerCount();
-    }
-
-    public long count() {
+    public long countTypes() {
         LOGGER.info("StickerService#count()");
         return stickerRepository.count();
     }
 
-    public long countNonApplied() {
-        LOGGER.info("StickerService#countNonApplied()");
-        return stickerRepository.countNonApplied();
+    public long countDistinctNonApplied() {
+        LOGGER.info("StickerService#countDistinctNonApplied()");
+        return stickerRepository.countDistinctNonApplied();
     }
 
-    public long getTotalAppliedForSet(ItemSet set) {
-        return stickerRepository.countAppliedForSet(set);
+    public long countDistinctApplied() {
+        LOGGER.info("StickerService#countDistinctApplied()");
+        return stickerRepository.countDistinctApplied();
     }
 
-    public long getTotalAppliedForItemName(String itemNameName) {
-        return stickerRepository.countAppliedForItemName(itemNameName.substring(10));
+    public long countTotalManuallyAppliedForSet(ItemSet set) {
+        LOGGER.info("StickerService#countTotalManuallyAppliedForSet(" + set.toString() + ")");
+        return stickerRepository.countTotalManuallyAppliedForSet(set);
+    }
+
+    public long countTotalSouvenirAppliedForSet(ItemSet set) {
+        LOGGER.info("StickerService#countTotalSouvenirAppliedForSet(" + set.toString() + ")");
+        return stickerRepository.countTotalSouvenirAppliedForSet(set);
+    }
+
+    public long countTotalManuallyAppliedForItemName(String itemNameName) {
+        LOGGER.info("StickerService#countTotalManuallyAppliedForItemName(" + itemNameName + ")");
+        return stickerRepository.countTotalManuallyAppliedForItemName(itemNameName.substring(10));
+    }
+
+    public long countTotalSouvenirAppliedForItemName(String itemNameName) {
+        LOGGER.info("StickerService#countTotalSouvenirAppliedForItemName(" + itemNameName + ")");
+        Long amount = stickerRepository.countTotalSouvenirAppliedForItemName(itemNameName.substring(10));
+        if (amount == null) {
+            return 0;
+        }
+        return amount;
     }
 }

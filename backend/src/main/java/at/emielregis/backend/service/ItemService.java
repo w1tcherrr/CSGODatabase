@@ -40,25 +40,28 @@ public class ItemService {
     }
 
     public void saveAll(List<Item> items) {
+        LOGGER.info("ItemService#saveAll()");
         itemRepository.saveAll(items);
     }
 
     public Set<Long> getAllItemIDs() {
+        LOGGER.info("ItemService#getAllItemIDs()");
         return itemRepository.getAllItemIDs();
     }
 
     public Set<Long> getNormalItemIDs() {
+        LOGGER.info("ItemService#getNormalItemIDs()");
         return itemRepository.getNormalItemIDs();
     }
 
     public List<Item> convert(List<TransientItem> itemList) {
-        LOGGER.info("Converting inventory");
-
+        LOGGER.info("ItemService#convert()");
         return itemList.stream().map(mapper::map).collect(Collectors.toList());
     }
 
     @Transactional
     public void deleteAllById(Set<Long> orphanedIDs) {
+        LOGGER.info("ItemService#deleteAllById(" + orphanedIDs + ")");
         for (Long id : orphanedIDs) {
             itemRepository.deleteById(id);
         }
@@ -66,6 +69,7 @@ public class ItemService {
     }
 
     public long count() {
+        LOGGER.info("ItemService#count()");
         return itemRepository.count();
     }
 
@@ -112,15 +116,17 @@ public class ItemService {
     }
 
     public List<ItemName> getAllNamesForSet(ItemSet set) {
-        LOGGER.info("ItemService#getAllNamesForSet()");
+        LOGGER.info("ItemService#getAllNamesForSet(" + set.toString() + ")");
         return itemRepository.getAllNamesForSet(set);
     }
 
     public long getTotalAmountForName(ItemName itemName) {
+        LOGGER.info("ItemService#getTotalAmountForName(" + itemName.toString() + ")");
         return itemRepository.getTotalAmountForName(itemName);
     }
 
     public long getSouvenirOrStatTrakAmountForName(ItemName itemName) {
+        LOGGER.info("ItemService#getSouvenirOrStatTrakAmountForName(" + itemName.toString() + ")");
         Long amount = itemRepository.getSouvenirOrStatTrakAmountForName(itemName);
         if (amount == null) {
             return 0;
@@ -129,10 +135,12 @@ public class ItemService {
     }
 
     public boolean itemNameHasExteriors(ItemName itemName) {
+        LOGGER.info("ItemService#itemNameHasExteriors(" + itemName.toString() + ")");
         return itemRepository.itemNameHasExteriors(itemName);
     }
 
     public long countForExteriorAndType(ItemName itemName, Exterior exterior, boolean statTrak, boolean souvenir) {
+        LOGGER.info("ItemService#countForExteriorAndType(" + itemName.toString() + ", " + exterior.toString() + ", " + statTrak + ", " + souvenir + ")");
         Long amount = itemRepository.countForExteriorAndType(itemName, exterior, statTrak, souvenir);
         if (amount == null) {
             return 0;
@@ -141,6 +149,7 @@ public class ItemService {
     }
 
     public long getTotalAmountForSetNoContainers(ItemSet set) {
+        LOGGER.info("ItemService#getTotalAmountForSetNoContainers(" + set.toString() + ")");
         List<ItemCategory> containerCategories = itemCategoryService.getAllContainerCategories();
         Long amount = itemRepository.countForSetNoContainers(set, containerCategories);
         if (amount == null) {
@@ -150,6 +159,7 @@ public class ItemService {
     }
 
     public long getTotalAmountOfContainersForSet(ItemSet set) {
+        LOGGER.info("ItemService#getTotalAmountOfContainersForSet(" + set.toString() + ")");
         List<ItemCategory> containerCategories = itemCategoryService.getAllContainerCategories();
         Long amount = itemRepository.countContainersForSet(set, containerCategories);
         if (amount == null) {
@@ -159,18 +169,22 @@ public class ItemService {
     }
 
     public long getNormalItemCount() {
+        LOGGER.info("ItemService#getNormalItemCount()");
         return itemRepository.normalItemCount();
     }
 
     public long getTotalAmountOfEmptyStorageUnits() {
+        LOGGER.info("ItemService#getTotalAmountOfEmptyStorageUnits()");
         return itemRepository.getTotalAmountOfStorageUnitsWithNoName();
     }
 
     public List<Item> getAllNonEmptyStorageUnits() {
+        LOGGER.info("ItemService#getAllNonEmptyStorageUnits()");
         return itemRepository.getAllNonEmptyStorageUnits();
     }
 
     public long getTotalAmountForNames(List<ItemName> search) {
+        LOGGER.info("ItemService#getTotalAmountForNames(" + search + ")");
         return itemRepository.getTotalAmountForNames(search);
     }
 }

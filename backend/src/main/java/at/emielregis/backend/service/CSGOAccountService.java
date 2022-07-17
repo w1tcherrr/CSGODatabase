@@ -18,10 +18,12 @@ public class CSGOAccountService {
     }
 
     public void save(CSGOAccount account) {
+        LOGGER.info("CSGOAccountService#save()");
         CSGOAccountRepository.save(account);
     }
 
     public boolean containsById64(String id64) {
+        LOGGER.info("CSGOAccountService#containsById64(" + id64 + ")");
         return CSGOAccountRepository.containsById64(id64);
     }
 

@@ -14,20 +14,30 @@ public interface StickerRepository extends JpaRepository<Sticker, Long> {
     @Query(
         "select sum(i.stickers.size) from Item i"
     )
-    long appliedStickerCount();
+    long countDistinctApplied();
 
     @Query(
         "select count (i.name) from ItemName i where i.name like 'Sticker%'"
     )
-    long countNonApplied();
+    long countDistinctNonApplied();
 
     @Query(
-        "select count (s) from Item i join i.stickers s where concat('Sticker | ', s.name) in (select distinct s1.name.name from Item s1 where s1.itemSet = :set)"
+        "select count (s) from Item i join i.stickers s where i.souvenir = false AND concat('Sticker | ', s.name) in (select distinct s1.name.name from Item s1 where s1.itemSet = :set)"
     )
-    long countAppliedForSet(@Param("set") ItemSet set);
+    long countTotalManuallyAppliedForSet(@Param("set") ItemSet set);
 
     @Query(
-        "select count (s) from Item i join i.stickers s where s.name = :name"
+        "select count (s) from Item i join i.stickers s where i.souvenir = true AND concat('Sticker | ', s.name) in (select distinct s1.name.name from Item s1 where s1.itemSet = :set)"
     )
-    long countAppliedForItemName(@Param("name") String name);
+    long countTotalSouvenirAppliedForSet(@Param("set") ItemSet set);
+
+    @Query(
+        "select count (s) from Item i join i.stickers s where i.souvenir = false AND s.name = :name"
+    )
+    Long countTotalManuallyAppliedForItemName(@Param("name") String name);
+
+    @Query(
+        "select count (s) from Item i join i.stickers s where i.souvenir = true AND s.name = :name"
+    )
+    Long countTotalSouvenirAppliedForItemName(@Param("name") String name);
 }

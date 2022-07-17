@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
@@ -70,34 +71,53 @@ public class SheetBuilder {
         rows.add(hasTitleRow ? 1 : 0, descriptionRow);
     }
 
-    public void addRow(String... text) {
+    public void addRow(CellStyle[] cellStyles, String... text) {
         Row row = sheet.createRow(rows.size());
+
         for (int i = 0; i < text.length; i++) {
             Cell cell = row.createCell(i);
+
+            // set the cell style if specified
+            if (cellStyles != null && i < cellStyles.length && cellStyles[i] != null) {
+                cell.setCellStyle(cellStyles[i]);
+            }
+
             String value = text[i];
-            if (!StringUtils.isEmpty(value) && value.trim().equals("0")) {
-                value = null;
+            if (value != null && isNumber(value)) {
+                long longValue = Long.parseLong(value);
+                if (longValue != 0) {
+                    cell.setCellValue(longValue);
+                } else {
+                    cell.setCellValue("");
+                }
+            } else {
+                cell.setCellValue(value != null ? value : "");
             }
-            if (value != null && DataWriterUtils.isNumber(value)) {
-                value = DataWriterUtils.formatNumber(Long.parseLong(value));
-            }
-            cell.setCellValue(value != null ? value : "");
         }
         rows.add(row);
     }
 
+    private static boolean isNumber(String cellValue) {
+        try {
+            Long.parseLong(cellValue);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
     public void emptyLines(int l) {
         for (int i = 0; i < l; i++) {
-            addRow("");
+            addRow(null, "");
         }
     }
 
     public void build() {
         setRowNumbers();
-        setStandardStyle();
+        style();
     }
 
-    public void setStandardStyle() {
+    public void style() {
         if (hasTitleRow) {
             Row titleRow = rows.get(0);
 
@@ -157,9 +177,21 @@ public class SheetBuilder {
         for (Row row : rows) {
             for (int i = 0; i < 20; i++) {
                 Cell cell = row.getCell(i);
-                if (cell != null && !StringUtils.isBlank(cell.getStringCellValue())) {
-                    if (i > lastValidColumn) {
-                        lastValidColumn = i;
+                if (cell == null) {
+                    continue;
+                }
+                if (cell.getCellType() == CellType.STRING) {
+                    if (!StringUtils.isBlank(cell.getStringCellValue())) {
+                        if (i > lastValidColumn) {
+                            lastValidColumn = i;
+                        }
+                    }
+                } else if (cell.getCellType() == CellType.NUMERIC) {
+                    int intValue = (int) cell.getNumericCellValue();
+                    if (intValue != 0) {
+                        if (i > lastValidColumn) {
+                            lastValidColumn = i;
+                        }
                     }
                 }
             }

@@ -1,6 +1,7 @@
 package at.emielregis.backend.repository;
 
 import at.emielregis.backend.data.entities.ItemName;
+import at.emielregis.backend.data.enums.Rarity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -21,4 +22,9 @@ public interface ItemNameRepository extends JpaRepository<ItemName, Long> {
         "Select distinct i.name from Item i where i.name.name like '%Sticker%' and i.itemSet IS NULL"
     )
     List<ItemName> getUnclassifiedStickerNames();
+
+    @Query(
+        "Select distinct i.rarity from Item i where i.name.name = :name"
+    )
+    Rarity getRarityForItemNameName(@Param("name") String itemNameName);
 }

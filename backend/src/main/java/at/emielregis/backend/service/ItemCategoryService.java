@@ -19,6 +19,7 @@ public record ItemCategoryService(ItemCategoryRepository itemCategoryRepository)
     }
 
     public List<ItemCategory> getAllContainerCategories() {
+        LOGGER.info("ItemCategoryService#getAllContainerCategories()");
         return List.of(
             itemCategoryRepository.findByName("Base Grade Container"),
             itemCategoryRepository.findByName("Prototype Base Grade Container")

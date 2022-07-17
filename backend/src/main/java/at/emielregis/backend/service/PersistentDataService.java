@@ -4,9 +4,12 @@ import at.emielregis.backend.data.entities.PersistentDataStore;
 import at.emielregis.backend.data.entities.SteamGroup;
 import at.emielregis.backend.repository.PersistentDataRepository;
 import at.emielregis.backend.repository.SteamGroupRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -16,6 +19,7 @@ import java.util.stream.Collectors;
 public class PersistentDataService {
     private final PersistentDataRepository persistentDataRepository;
     private final SteamGroupRepository steamGroupRepository;
+    private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     public PersistentDataService(PersistentDataRepository persistentDataRepository,
                                  SteamGroupRepository steamGroupRepository) {
@@ -24,6 +28,7 @@ public class PersistentDataService {
     }
 
     public void save(PersistentDataStore store) {
+        LOGGER.info("PersistentDataService#save()");
         Long id = getInstanceId();
         if (!Objects.equals(store.getId(), id)) { // if the data store instance is not the same
             throw new IllegalArgumentException("Must not create more than one PersistentDataStore!");
@@ -32,20 +37,23 @@ public class PersistentDataService {
     }
 
     private PersistentDataStore getInstance() {
-        if (noStore()) {
+        LOGGER.info("PersistentDataService#getInstance()");
+        if (noStoreExists()) {
             createNewStore();
         }
         return persistentDataRepository.findAll().get(0);
     }
 
     private Long getInstanceId() {
-        if (noStore()) {
+        LOGGER.info("PersistentDataService#getInstanceId()");
+        if (noStoreExists()) {
             createNewStore();
         }
         return persistentDataRepository.getId();
     }
 
     private void createNewStore() {
+        LOGGER.info("PersistentDataService#createNewStore()");
         persistentDataRepository.save(
             PersistentDataStore
                 .builder()
@@ -54,7 +62,8 @@ public class PersistentDataService {
         );
     }
 
-    private boolean noStore() {
+    private boolean noStoreExists() {
+        LOGGER.info("PersistentDataService#noStoreExists()");
         return persistentDataRepository.count() <= 0;
     }
 
@@ -66,6 +75,7 @@ public class PersistentDataService {
      */
     @Transactional
     public List<SteamGroup> initializeGroups(List<String> steamGroups) {
+        LOGGER.info("PersistentDataService#initializeGroups(" + steamGroups + ")");
         PersistentDataStore store = getInstance();
         List<SteamGroup> groups = store.getSteamGroups();
         List<SteamGroup> toRemove = new ArrayList<>();
@@ -103,10 +113,11 @@ public class PersistentDataService {
      */
     @Transactional
     public synchronized long getNextPage(String currentGroup) {
+        LOGGER.info("PersistentDataService#getNextPage(" + currentGroup + ")");
 
         PersistentDataStore store = getInstance();
         List<SteamGroup> groups = store.getSteamGroups();
-        SteamGroup group = getByName(groups, currentGroup);
+        SteamGroup group = getGroupByName(groups, currentGroup);
         List<Integer> groupList = group.getMappedPages();
 
         // get the next unmapped page. Due to multi-threading the list is not always ascending without gaps.
@@ -132,9 +143,10 @@ public class PersistentDataService {
      */
     @Transactional
     public synchronized void freePage(String currentGroup, long currentPage) {
+        LOGGER.info("PersistentDataService#getNextPage(" + currentGroup + ", " + currentPage + ")");
         PersistentDataStore store = getInstance();
         List<SteamGroup> groups = store.getSteamGroups();
-        SteamGroup group = getByName(groups, currentGroup);
+        SteamGroup group = getGroupByName(groups, currentGroup);
         List<Integer> groupList = group.getMappedPages();
         groupList.removeAll(List.of((int) currentPage)); // otherwise the index method is used
         group.setMappedPages(groupList);
@@ -142,7 +154,8 @@ public class PersistentDataService {
         save(store);
     }
 
-    public SteamGroup getByName(List<SteamGroup> groups, String currentGroup) {
+    public SteamGroup getGroupByName(List<SteamGroup> groups, String currentGroup) {
+        LOGGER.info("PersistentDataService#getByName(" + currentGroup + ")");
         for (SteamGroup group : groups) {
             if (group.getName().equals(currentGroup)) {
                 return group;
@@ -158,9 +171,10 @@ public class PersistentDataService {
      */
     @Transactional
     public void lockGroup(String currentGroup) {
+        LOGGER.info("PersistentDataService#getByName(" + currentGroup + ")");
         PersistentDataStore store = getInstance();
         List<SteamGroup> groups = store.getSteamGroups();
-        SteamGroup group = getByName(groups, currentGroup);
+        SteamGroup group = getGroupByName(groups, currentGroup);
         group.setLocked(true);
         save(store);
     }
@@ -173,6 +187,7 @@ public class PersistentDataService {
      */
     @Transactional
     public List<SteamGroup> getUnlockedGroups() {
+        LOGGER.info("PersistentDataService#getUnlockedGroups()");
         PersistentDataStore store = getInstance();
         return store.getSteamGroups().stream().filter(s -> !s.isLocked()).collect(Collectors.toList());
     }

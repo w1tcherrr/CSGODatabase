@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -18,6 +19,7 @@ public record ItemSetService(ItemSetRepository itemSetRepository) {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     public List<ItemSet> searchBySubstring(String... searches) {
+        LOGGER.info("ItemSetService#searchBySubstring(" + Arrays.toString(searches) + ")");
         List<ItemSet> sets = new ArrayList<>();
         for (String search : searches) {
             sets.addAll(itemSetRepository.search(search));
@@ -26,6 +28,7 @@ public record ItemSetService(ItemSetRepository itemSetRepository) {
     }
 
     public List<ItemSet> searchByEquality(String... searches) {
+        LOGGER.info("ItemSetService#searchByEquality(" + Arrays.toString(searches) + ")");
         List<ItemSet> sets = new ArrayList<>();
         for (String search : searches) {
             sets.add(itemSetRepository.getByName(search));
@@ -33,19 +36,18 @@ public record ItemSetService(ItemSetRepository itemSetRepository) {
         return sets.stream().distinct().toList();
     }
 
-    public List<ItemSet> getAll() {
-        return itemSetRepository.findAll().stream().sorted(Comparator.comparing(ItemSet::getName)).collect(Collectors.toList());
-    }
-
     public List<Exterior> getExteriorsForItemSet(ItemSet set) {
+        LOGGER.info("ItemSetService#getExteriorsForItemSet(" + set.toString() + ")");
         return itemSetRepository.getExteriorsForSet(set);
     }
 
     public boolean hasStatTrakForItemSet(ItemSet set) {
+        LOGGER.info("ItemSetService#hasStatTrakForItemSet(" + set.toString() + ")");
         return itemSetRepository.hasStatTrakForItemSet(set);
     }
 
     public boolean hasSouvenirForItemSet(ItemSet set) {
+        LOGGER.info("ItemSetService#hasSouvenirForItemSet(" + set.toString() + ")");
         return itemSetRepository.hasSouvenirForItemSet(set);
     }
 
@@ -55,6 +57,7 @@ public record ItemSetService(ItemSetRepository itemSetRepository) {
     }
 
     public List<ItemSet> getAllCaseCollections() {
+        LOGGER.info("ItemSetService#getAllCaseCollections()");
         return searchByEquality(
             "The Recoil Collection",
             "The Dreams & Nightmares Collection",
@@ -98,6 +101,7 @@ public record ItemSetService(ItemSetRepository itemSetRepository) {
     }
 
     public List<ItemSet> getAllSouvenirCollections() {
+        LOGGER.info("ItemSetService#getAllSouvenirCollections()");
         return searchBySubstring("Mirage", "Dust II", "Ancient", "Inferno",
             "Overpass", "Nuke", "Vertigo", "Cache", "Cobblestone", "Train", "Souvenir")
             .stream().sorted(Comparator.comparing(ItemSet::getName))
@@ -106,6 +110,7 @@ public record ItemSetService(ItemSetRepository itemSetRepository) {
     }
 
     public List<ItemSet> getAllStickerCollections() {
+        LOGGER.info("ItemSetService#getAllStickerCollections()");
         return searchByEquality(
             "Antwerp 2022 Contenders Stickers",
             "Antwerp 2022 Legends Stickers",
@@ -190,6 +195,7 @@ public record ItemSetService(ItemSetRepository itemSetRepository) {
     }
 
     public List<ItemSet> getAllPatchCollections() {
+        LOGGER.info("ItemSetService#getAllPatchCollections()");
         return searchByEquality(
             "Stockholm 2021 Challengers Patches",
             "Stockholm 2021 Legends Patches",

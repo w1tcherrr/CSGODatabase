@@ -24,6 +24,7 @@ public class SteamAccountService {
     }
 
     public synchronized void init() {
+        LOGGER.info("SteamAccountService#init()");
         ids = new ArrayList<>(steamAccountRepository.findAllUnmappedIDs());
         Collections.shuffle(ids); // shuffle once so random accounts are picked and not only those found first
     }
@@ -35,6 +36,7 @@ public class SteamAccountService {
      * @return The List of account id64s.
      */
     public synchronized List<String> findNextIds(long amount) {
+        LOGGER.info("SteamAccountService#findNextIds(" + amount + ")");
         if (!initialized) { // initialize on the first call
             initialized = true;
             init();
@@ -59,10 +61,12 @@ public class SteamAccountService {
     }
 
     public boolean containsById64(String current) {
+        LOGGER.info("SteamAccountService#containsById64(" + current + ")");
         return steamAccountRepository.containsById64(current);
     }
 
     public void saveAll(List<SteamAccount> accountList) {
+        LOGGER.info("SteamAccountService#saveAll()");
         steamAccountRepository.saveAll(accountList);
     }
 }
