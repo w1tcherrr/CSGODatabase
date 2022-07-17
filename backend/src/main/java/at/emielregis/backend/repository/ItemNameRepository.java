@@ -24,7 +24,12 @@ public interface ItemNameRepository extends JpaRepository<ItemName, Long> {
     List<ItemName> getUnclassifiedStickerNames();
 
     @Query(
-        "Select distinct i.rarity from Item i where i.name.name = :name"
+        "Select distinct i.rarity from Item i where i.name = :name"
     )
-    Rarity getRarityForItemNameName(@Param("name") String itemNameName);
+    List<Rarity> getRarityForItemName(@Param("name") ItemName name);
+
+    @Query(
+        "Select count(distinct i) from Item i where i.name = :name and i.rarity = :rarity"
+    )
+    int countByItemNameAndRarity(@Param("name") ItemName name, @Param("rarity") Rarity rarity);
 }
