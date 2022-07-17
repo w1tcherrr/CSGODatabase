@@ -55,6 +55,11 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     long getTotalAmountForNames(@Param("names") List<ItemName> search);
 
     @Query(
+        "SELECT sum(i.amount) from Item i where i.category in :categories and i.name in :names"
+    )
+    long getTotalAmountOfContainersForNames(@Param("names") List<ItemName> names, @Param("categories") List<ItemCategory> containerSets);
+
+    @Query(
         "SELECT sum(i.amount) from Item i where i.name = :name and (i.souvenir = TRUE OR i.statTrak = TRUE)"
     )
     Long getSouvenirOrStatTrakAmountForName(@Param("name") ItemName itemName);

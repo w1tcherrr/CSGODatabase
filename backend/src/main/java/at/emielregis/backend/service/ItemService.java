@@ -73,12 +73,12 @@ public class ItemService {
         return itemRepository.count();
     }
 
-    public long itemCountNoStorageUnits() {
+    public long countItemsNoStorageUnits() {
         LOGGER.info("ItemService#itemCountNoStorageUnits()");
         return itemRepository.itemCountNoStorageUnits();
     }
 
-    public long itemCountOnlyStorageUnits() {
+    public long countItemsInStorageUnits() {
         LOGGER.info("ItemService#itemCountOnlyStorageUnits()");
         return itemRepository.itemCountInStorageUnits();
     }
@@ -87,15 +87,6 @@ public class ItemService {
         LOGGER.info("ItemService#getHighestSingleInventoryCount()");
         TypedQuery<Long> query = entityManager.createQuery("SELECT sum(case when i.storageUnitAmount IS NOT NULL then " +
                 "(i.storageUnitAmount * i.amount + 1) else i.amount end) as amount from CSGOInventory inv join inv.items i group by inv.id order by amount desc",
-            Long.class);
-        query.setFirstResult(0).setMaxResults(1);
-        return query.getSingleResult();
-    }
-
-    public long getLowestSingleInventoryCount() {
-        LOGGER.info("ItemService#getLowestSingleInventoryCount()");
-        TypedQuery<Long> query = entityManager.createQuery("SELECT sum(case when i.storageUnitAmount IS NOT NULL then " +
-                "(i.storageUnitAmount * i.amount + 1) else i.amount end) as amount from CSGOInventory inv join inv.items i group by inv.id order by amount asc",
             Long.class);
         query.setFirstResult(0).setMaxResults(1);
         return query.getSingleResult();
@@ -168,12 +159,12 @@ public class ItemService {
         return amount;
     }
 
-    public long getNormalItemCount() {
+    public long countNormalItems() {
         LOGGER.info("ItemService#getNormalItemCount()");
         return itemRepository.normalItemCount();
     }
 
-    public long getTotalAmountOfEmptyStorageUnits() {
+    public long countAmountOfEmptyStorageUnits() {
         LOGGER.info("ItemService#getTotalAmountOfEmptyStorageUnits()");
         return itemRepository.getTotalAmountOfStorageUnitsWithNoName();
     }
@@ -186,5 +177,10 @@ public class ItemService {
     public long getTotalAmountForNames(List<ItemName> search) {
         LOGGER.info("ItemService#getTotalAmountForNames(" + search + ")");
         return itemRepository.getTotalAmountForNames(search);
+    }
+
+    public long getTotalAmountOfContainersForNames(List<ItemName> search) {
+        LOGGER.info("ItemService#getTotalAmountOfContainersForNames(" + search + ")");
+        return itemRepository.getTotalAmountOfContainersForNames(search, itemCategoryService.getAllContainerCategories());
     }
 }

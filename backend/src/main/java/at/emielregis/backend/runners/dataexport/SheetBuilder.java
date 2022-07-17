@@ -156,8 +156,12 @@ public class SheetBuilder {
         standardStyle.setFont(font);
 
         for (Row row : rows) {
-            if (row.getRowStyle() == null) {
-                setRowStyle(row, standardStyle);
+            for (int i = 0; i < 20; i++) {
+                Cell cell = row.getCell(i);
+                if (cell == null) continue;
+                if (cell.getCellStyle() == null) {
+                    cell.setCellStyle(standardStyle);
+                }
             }
         }
 

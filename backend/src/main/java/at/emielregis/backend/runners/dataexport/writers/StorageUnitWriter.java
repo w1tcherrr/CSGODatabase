@@ -32,7 +32,7 @@ public class StorageUnitWriter extends AbstractDataWriter {
         storageUnitSheetBuilder.setTitleRow("Overview");
         storageUnitSheetBuilder.setDescriptionRow("Storage Unit Name", "Amount of Units with name", "Total amount of items");
 
-        storageUnitSheetBuilder.addRow(null, "Empty units", "" + itemService.getTotalAmountOfEmptyStorageUnits());
+        storageUnitSheetBuilder.addRow(null, "Empty units", "" + itemService.countAmountOfEmptyStorageUnits());
         storageUnitSheetBuilder.emptyLines(1);
 
         List<String[]> lines = Collections.synchronizedList(new ArrayList<>());

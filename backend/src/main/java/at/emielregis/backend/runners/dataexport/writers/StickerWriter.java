@@ -34,7 +34,7 @@ public class StickerWriter extends AbstractDataWriter {
 
         SheetBuilder overviewBuilder = SheetBuilder.create(workBook, "Overview");
         overviewBuilder.setTitleRow("Overview");
-        overviewBuilder.setDescriptionRow("Item Name", "Total Amount (Non applied)", "Total Amount (Non-Souvenir Guns)", "Total Amount (Souvenir Guns)");
+        overviewBuilder.setDescriptionRow("Item Name", "Total Amount (Capsules)", "Total Amount (Stickers)", "Total Amount (Applied, Non-Souvenir Guns)", "Total Amount (Applied, Souvenir Guns)");
 
         List<String[]> rows = Collections.synchronizedList(new ArrayList<>());
         AtomicInteger current = new AtomicInteger();

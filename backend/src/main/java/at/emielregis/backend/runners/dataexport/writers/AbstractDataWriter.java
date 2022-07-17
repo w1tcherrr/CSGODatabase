@@ -15,6 +15,7 @@ import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -224,12 +225,13 @@ public abstract class AbstractDataWriter {
     protected CellStyle getStyleForName(Workbook workbook, String itemNameName) {
         LOGGER.info("AbstractDataWriter#getStyleForName(" + itemNameName + ")");
         IndexedColors color = itemNameService.getRarityForItemNameName(itemNameName).getColor();
-        if (color != null) {
-            CellStyle cellStyle = workbook.createCellStyle();
-            cellStyle.setFillForegroundColor(color.getIndex());
-            cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-            return cellStyle;
-        }
-        return null;
+        CellStyle cellStyle = workbook.createCellStyle();
+        XSSFFont font = ((XSSFWorkbook) workbook).createFont();
+        font.setFontName("Serif");
+        font.setFontHeightInPoints((short) 11);
+        cellStyle.setFont(font);
+        cellStyle.setFillForegroundColor(color.getIndex());
+        cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        return cellStyle;
     }
 }

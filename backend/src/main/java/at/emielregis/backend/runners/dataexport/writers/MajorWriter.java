@@ -48,15 +48,16 @@ public class MajorWriter extends AbstractDataWriter {
 
         SheetBuilder overviewBuilder = SheetBuilder.create(workBook, "Overview");
         overviewBuilder.setTitleRow("Overview");
-        overviewBuilder.setDescriptionRow("Major", "Total Amount of Items from all collections (excluding storage units!)");
+        overviewBuilder.setDescriptionRow("Major", "Total Amount of Items", "Total Amount of Capsules");
         overviewBuilder.emptyLines(1);
 
         for (String[] strings : majorList) {
-            LOGGER.info("Mapping total amount for major {}", strings[0]);
-            String[] currentRow = new String[2];
+            LOGGER.info("Mapping total amounts for major {}", strings[0]);
+            String[] currentRow = new String[3];
             currentRow[0] = strings[0];
             String[] stringCopy = Arrays.copyOfRange(strings, 1, strings.length);
             currentRow[1] = "" + itemService.getTotalAmountForNames(itemNameService.getSearch(stringCopy));
+            currentRow[2] = "" + itemService.getTotalAmountOfContainersForNames(itemNameService.getSearch(stringCopy));
             overviewBuilder.addRow(null, currentRow);
         }
 

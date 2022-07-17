@@ -3,8 +3,8 @@ package at.emielregis.backend.data.enums;
 import org.apache.poi.ss.usermodel.IndexedColors;
 
 public enum Rarity {
-    STOCK(IndexedColors.GREY_40_PERCENT),           // STOCK ITEMS
-    CONSUMER_GRADE(IndexedColors.WHITE),            // WHITE
+    STOCK(IndexedColors.GREY_25_PERCENT),           // STOCK ITEMS
+    CONSUMER_GRADE(IndexedColors.GREY_40_PERCENT),  // WHITE
     INDUSTRIAL_GRADE(IndexedColors.AQUA),           // LIGHT BLUE
     MIL_SPEC(IndexedColors.LIGHT_BLUE),             // BLUE
     RESTRICTED(IndexedColors.VIOLET),               // PURPLE
@@ -15,7 +15,7 @@ public enum Rarity {
 
     EXTRAORDINARY(IndexedColors.GOLD),              // GOLD (STICKERS, GLOVES, KNIFES, ETC.)
 
-    BASE_GRADE(null),                    // CONTAINERS LIKE STICKER CAPSULES
+    BASE_GRADE(IndexedColors.GREY_25_PERCENT),      // CONTAINERS LIKE STICKER CAPSULES
 
     HIGH_GRADE(IndexedColors.GREY_40_PERCENT),      // NORMAL STICKERS
     REMARKABLE(IndexedColors.VIOLET),               // HOLO STICKERS

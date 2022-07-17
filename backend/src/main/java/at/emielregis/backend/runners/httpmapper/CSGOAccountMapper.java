@@ -48,8 +48,12 @@ public class CSGOAccountMapper {
     or private accounts / private inventories are not counted. It is a precise value and is never exceeded.
     The program stops once when it reaches the exact amount. Note that the groups specified in the groups.txt file
     must contain around at least 1.5 times as many accounts as this value!
+
+    MIN_ITEMS_FOR_ACCOUNT specifies how many items an inventory must have to be stored. This is to filter out most
+    very obvious smurf accounts, which only have extremely few items.
      */
     private static final long MAX_CSGO_ACCOUNTS = 1_000_000;
+    private static final long MIN_ITEMS_FOR_ACCOUNT = 10;
 
     /*
     amount of accounts already mapped that also have an inventory
@@ -256,9 +260,13 @@ public class CSGOAccountMapper {
                     --alreadyMappedAccountsWithInventories;
                     return;
                 }
-                CSGOInventory inv = acc.getCsgoInventory();
-                itemService.saveAll(inv.getItems());
-                csgoInventoryService.save(acc.getCsgoInventory());
+                if (acc.getCsgoInventory().getItems().size() >= MIN_ITEMS_FOR_ACCOUNT) {
+                    CSGOInventory inv = acc.getCsgoInventory();
+                    itemService.saveAll(inv.getItems());
+                    csgoInventoryService.save(acc.getCsgoInventory());
+                } else {
+                    acc.setCsgoInventory(null);
+                }
             }
 
             csgoAccountService.save(acc);
@@ -287,7 +295,7 @@ public class CSGOAccountMapper {
         // use sets not lists for performance as ids may not be duplicate anyway
         LOGGER.info("Delete orphaned items");
 
-        if (itemService.count() == itemService.getNormalItemCount()) {
+        if (itemService.count() == itemService.countNormalItems()) {
             LOGGER.info("No orphaned items!");
             return;
         }
