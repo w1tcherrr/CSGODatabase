@@ -1,13 +1,14 @@
 package at.emielregis.backend.runners.dataexport.writers;
 
-import at.emielregis.backend.data.entities.ItemName;
-import at.emielregis.backend.data.entities.ItemSet;
+import at.emielregis.backend.data.entities.items.ItemSet;
+import at.emielregis.backend.data.entities.items.ItemType;
 import at.emielregis.backend.runners.dataexport.SheetBuilder;
 import at.emielregis.backend.service.CSGOAccountService;
 import at.emielregis.backend.service.ItemCategoryService;
 import at.emielregis.backend.service.ItemNameService;
 import at.emielregis.backend.service.ItemService;
 import at.emielregis.backend.service.ItemSetService;
+import at.emielregis.backend.service.ItemTypeService;
 import at.emielregis.backend.service.SteamAccountService;
 import at.emielregis.backend.service.StickerService;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -22,8 +23,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component
 public class StickerWriter extends AbstractDataWriter {
 
-    public StickerWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService) {
-        super(itemService, steamAccountService, csgoAccountService, stickerService, itemSetService, itemNameService, itemCategoryService);
+    public StickerWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, StickerService stickerService, ItemTypeService itemTypeService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService) {
+        super(itemService, steamAccountService, csgoAccountService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
     }
 
     @Override
@@ -59,17 +60,17 @@ public class StickerWriter extends AbstractDataWriter {
         unclassifiedBuilder.setTitleRow("Unclassified Stickers");
         unclassifiedBuilder.setDescriptionRow("Item Name", "Total Amount (Non applied)", "Total Amount (Non-Souvenir Guns)", "Total Amount (Souvenir Guns)");
 
-        List<ItemName> unclassifiedStickerNames = itemNameService.getUnclassifiedStickerNames();
+        List<ItemType> unclassifiedStickerTypes = itemTypeService.getUnclassifiedStickerTypes();
 
         rows = Collections.synchronizedList(new ArrayList<>());
         List<String[]> finalRows = rows;
         current = new AtomicInteger();
         AtomicInteger finalCurrent = current;
-        unclassifiedStickerNames.parallelStream().forEach(name -> {
-            LOGGER.info("Currently mapping item " + finalCurrent.incrementAndGet() + "/" + unclassifiedStickerNames.size() + ": " + name.getName());
-            String[] row = formatLineForItemName(name, false, false, List.of());
-            row[2] = "" + stickerService.countTotalManuallyAppliedForItemName(name.getName());
-            row[3] = "" + stickerService.countTotalSouvenirAppliedForItemName(name.getName());
+        unclassifiedStickerTypes.parallelStream().forEach(type -> {
+            LOGGER.info("Currently mapping item " + finalCurrent.incrementAndGet() + "/" + unclassifiedStickerTypes.size() + ": " + type.getItemName().getName());
+            String[] row = formatLineForItemName(type.getItemName(), false, false, List.of());
+            row[2] = "" + stickerService.countTotalManuallyAppliedForItemName(type.getItemName().getName());
+            row[3] = "" + stickerService.countTotalSouvenirAppliedForItemName(type.getItemName().getName());
             finalRows.add(row);
         });
 

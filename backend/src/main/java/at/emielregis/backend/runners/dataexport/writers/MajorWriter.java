@@ -6,6 +6,7 @@ import at.emielregis.backend.service.ItemCategoryService;
 import at.emielregis.backend.service.ItemNameService;
 import at.emielregis.backend.service.ItemService;
 import at.emielregis.backend.service.ItemSetService;
+import at.emielregis.backend.service.ItemTypeService;
 import at.emielregis.backend.service.SteamAccountService;
 import at.emielregis.backend.service.StickerService;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -18,8 +19,8 @@ import java.util.List;
 @Component
 public class MajorWriter extends AbstractDataWriter {
 
-    public MajorWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService) {
-        super(itemService, steamAccountService, csgoAccountService, stickerService, itemSetService, itemNameService, itemCategoryService);
+    public MajorWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, ItemTypeService itemTypeService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService) {
+        super(itemService, steamAccountService, csgoAccountService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
     }
 
     @Override

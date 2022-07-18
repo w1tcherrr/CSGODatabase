@@ -61,7 +61,6 @@ public class SteamAccountService {
     }
 
     public boolean containsById64(String current) {
-        LOGGER.info("SteamAccountService#containsById64(" + current + ")");
         return steamAccountRepository.containsById64(current);
     }
 

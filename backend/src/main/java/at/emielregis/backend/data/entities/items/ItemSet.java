@@ -1,10 +1,11 @@
-package at.emielregis.backend.data.entities;
+package at.emielregis.backend.data.entities.items;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.Hibernate;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -19,7 +20,7 @@ import java.util.Objects;
 @Getter
 @Setter
 @Entity
-public class ItemName {
+public class ItemSet {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,13 +37,17 @@ public class ItemName {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        ItemName itemName = (ItemName) o;
-        return Objects.equals(id, itemName.id);
+        if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
+        ItemSet itemSet = (ItemSet) o;
+        return id != null && Objects.equals(id, itemSet.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return getClass().hashCode();
+    }
+
+    public boolean deepEquals(ItemSet itemSet) {
+        return this.name.equals(itemSet.getName());
     }
 }

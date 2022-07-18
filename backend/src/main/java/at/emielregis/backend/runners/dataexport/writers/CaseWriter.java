@@ -1,13 +1,14 @@
 package at.emielregis.backend.runners.dataexport.writers;
 
-import at.emielregis.backend.data.entities.ItemName;
-import at.emielregis.backend.data.entities.ItemSet;
+import at.emielregis.backend.data.entities.items.ItemName;
+import at.emielregis.backend.data.entities.items.ItemSet;
 import at.emielregis.backend.runners.dataexport.SheetBuilder;
 import at.emielregis.backend.service.CSGOAccountService;
 import at.emielregis.backend.service.ItemCategoryService;
 import at.emielregis.backend.service.ItemNameService;
 import at.emielregis.backend.service.ItemService;
 import at.emielregis.backend.service.ItemSetService;
+import at.emielregis.backend.service.ItemTypeService;
 import at.emielregis.backend.service.SteamAccountService;
 import at.emielregis.backend.service.StickerService;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -20,8 +21,8 @@ import java.util.List;
 @Component
 public class CaseWriter extends AbstractDataWriter {
 
-    public CaseWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService) {
-        super(itemService, steamAccountService, csgoAccountService, stickerService, itemSetService, itemNameService, itemCategoryService);
+    public CaseWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService, ItemTypeService itemTypeService) {
+        super(itemService, steamAccountService, csgoAccountService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
     }
 
     @Override
@@ -33,10 +34,11 @@ public class CaseWriter extends AbstractDataWriter {
         overviewBuilder.setDescriptionRow("Item Name", "Total Amount (Cases)", "Total Amount (Skins)");
 
         List<String[]> overviewLines = new ArrayList<>();
-        caseSets.parallelStream().forEach(set -> {
-            List<ItemName> allValidItemNames = itemService.getAllNamesForSet(set);
+        caseSets.forEach(set -> {
+            List<ItemName> allValidItemNames = itemNameService.getAllNamesForSet(set);
             for (ItemName name : allValidItemNames) {
                 if (name.getName().matches(".* Case ?[23]?")) {
+                    System.out.println(name);
                     overviewLines.add(new String[]{name.getName(), "" + itemService.getTotalAmountOfContainersForSet(set), "" + itemService.getTotalAmountForSetNoContainers(set)});
                 }
             }

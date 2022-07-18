@@ -1,12 +1,14 @@
 package at.emielregis.backend.data.responses;
 
-import at.emielregis.backend.data.dtos.TransientClassId;
-import at.emielregis.backend.data.dtos.TransientItem;
-import at.emielregis.backend.data.dtos.TransientItemCategory;
-import at.emielregis.backend.data.dtos.TransientItemSet;
-import at.emielregis.backend.data.dtos.TransientSticker;
+import at.emielregis.backend.data.entities.items.ItemCategory;
+import at.emielregis.backend.data.entities.items.ItemCollection;
+import at.emielregis.backend.data.entities.items.ItemName;
+import at.emielregis.backend.data.entities.items.ItemSet;
+import at.emielregis.backend.data.entities.items.ItemType;
+import at.emielregis.backend.data.entities.items.Sticker;
 import at.emielregis.backend.data.enums.Exterior;
 import at.emielregis.backend.data.enums.Rarity;
+import at.emielregis.backend.data.enums.SpecialItemType;
 import at.emielregis.backend.data.enums.StickerType;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -19,8 +21,35 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class HttpInventoryResponse {
-    private final HashMap<TransientClassId, TransientItem> items = new HashMap<>();
-    private final HashMap<String, TransientItemCategory> types = new HashMap<>();
+
+    private record UniqueItemTypeIdentifier(String classId, String instanceId) {
+
+    }
+
+    private static final List<String[]> stickerNamesWithCommas =
+        List.of(
+            new String[]{"Don't Worry", " I'm Pro"},
+            new String[]{"Hi", " My Game Is"},
+            new String[]{"Rock", " Paper", " Scissors (Foil)"},
+            new String[]{"Run CT", " Run"},
+            new String[]{"Twistzz (Gold", " Champion) | Antwerp 2022"},
+            new String[]{"Twistzz (Holo", " Champion) | Antwerp 2022"},
+            new String[]{"Twistzz (Glitter", " Champion) | Antwerp 2022"},
+            new String[]{"ropz (Gold", " Champion) | Antwerp 2022"},
+            new String[]{"ropz (Holo", " Champion) | Antwerp 2022"},
+            new String[]{"ropz (Glitter", " Champion) | Antwerp 2022"},
+            new String[]{"rain (Gold", " Champion) | Antwerp 2022"},
+            new String[]{"rain (Holo", " Champion) | Antwerp 2022"},
+            new String[]{"rain (Glitter", " Champion) | Antwerp 2022"},
+            new String[]{"broky (Gold", " Champion) | Antwerp 2022"},
+            new String[]{"broky (Holo", " Champion) | Antwerp 2022"},
+            new String[]{"broky (Glitter", " Champion) | Antwerp 2022"},
+            new String[]{"karrigan (Gold", " Champion) | Antwerp 2022"},
+            new String[]{"karrigan (Holo", " Champion) | Antwerp 2022"},
+            new String[]{"karrigan (Glitter", " Champion) | Antwerp 2022"}
+        );
+
+    private final HashMap<UniqueItemTypeIdentifier, ItemCollection> items = new HashMap<>();
 
     @JsonProperty("success")
     private Integer success;
@@ -40,22 +69,35 @@ public class HttpInventoryResponse {
      */
     @JsonProperty("assets")
     private void unpackAssets(List<Map<String, Object>> assets) {
-        assets.forEach(map -> map.forEach((key, value) -> {
+        assets.forEach(map -> {
+            AtomicReference<String> currentClassId = new AtomicReference<>();
+            AtomicReference<String> currentInstanceId = new AtomicReference<>();
+
+            map.forEach((key, value) -> {
                 if (key.equals("classid")) {
-                    String itemName = (String) value;
-                    if (items.containsKey(TransientClassId.of(itemName))) {
-                        items.put(TransientClassId.of(itemName), items.get((TransientClassId.of(itemName))).increaseAmount());
-                    } else {
-                        items.put(TransientClassId.of(itemName), TransientItem.builder().amount(1).build());
-                    }
+                    currentClassId.set((String) value);
+                } else if (key.equals("instanceid")) {
+                    currentInstanceId.set((String) value);
                 }
-            })
-        );
+            });
+
+            // this should never happen unless there is a mistake in the api
+            if (currentClassId.get() == null || currentInstanceId.get() == null) {
+                throw new IllegalStateException("ClassId or CurrentInstanceId is null in response: " + assets);
+            }
+
+            UniqueItemTypeIdentifier identifier = new UniqueItemTypeIdentifier(currentClassId.get(), currentInstanceId.get());
+            if (items.containsKey(identifier)) {
+                items.put(identifier, ItemCollection.builder().amount(items.get(identifier).getAmount() + 1).build());
+            } else {
+                items.put(identifier, ItemCollection.builder().amount(1).build());
+            }
+        });
     }
 
     /**
      * Unpacks the detailed descriptions of all the items in the JSON response and creates TransientItem instances
-     * for each unique class id.
+     * for each unique class/instance id.
      *
      * @param descriptions The map of descriptions from the JSON response.
      */
@@ -63,183 +105,156 @@ public class HttpInventoryResponse {
     private void unpackNested(List<Map<String, Object>> descriptions) {
         descriptions.forEach(map -> {
             final AtomicReference<String> atomicName = new AtomicReference<>();
-            final AtomicReference<String> atomicType = new AtomicReference<>();
+            final AtomicReference<String> atomicCategory = new AtomicReference<>();
             final AtomicReference<String> atomicClassId = new AtomicReference<>();
+            final AtomicReference<String> atomicInstanceId = new AtomicReference<>();
             final AtomicReference<String> atomicNameTag = new AtomicReference<>();
-            final AtomicReference<Boolean> atomicTradable = new AtomicReference<>();
             final AtomicReference<Boolean> atomicStatTrak = new AtomicReference<>(false);
             final AtomicReference<Boolean> atomicSouvenir = new AtomicReference<>(false);
             final AtomicReference<Exterior> atomicExterior = new AtomicReference<>();
             final AtomicReference<String> atomicItemSet = new AtomicReference<>();
             final AtomicReference<Rarity> atomicRarity = new AtomicReference<>();
             final AtomicReference<Integer> atomicStorageUnitAmount = new AtomicReference<>();
-            final AtomicReference<List<TransientSticker>> atomicStickers = new AtomicReference<>();
+            final AtomicReference<List<Sticker>> atomicStickers = new AtomicReference<>();
             map.forEach((key, value) -> {
-                if (key.equals("name")) {
-                    atomicName.set((String) value);
-                }
-                if (key.equals("classid")) {
-                    atomicClassId.set((String) value);
-                }
-                if (key.equals("type")) {
-                    atomicType.set((String) value);
-                }
-                if (key.equals("fraudwarnings")) {
-                    String nameTag = ((List<String>) value).get(0);
-                    atomicNameTag.set(nameTag.substring(12, nameTag.length() - 2));
-                }
-                if (key.equals("tradable")) {
-                    atomicTradable.set(((Integer) value) == 1);
-                }
-                if (key.equals("descriptions")) {
-                    List<Map<String, Object>> maps = (List<Map<String, Object>>) value;
-                    maps.forEach(map1 -> map1.forEach((key1, value1) -> {
-                        if (key1.equals("value")) {
-                            String value2 = (String) value1;
-                            if (value2.contains("sticker_info")) {
-                                int amountOfStickers = value2.split("<img").length - 1;
+                switch (key) {
+                    case "name" -> atomicName.set((String) value);
+                    case "classid" -> atomicClassId.set((String) value);
+                    case "instanceid" -> atomicInstanceId.set((String) value);
+                    case "type" -> atomicCategory.set((String) value);
+                    case "fraudwarnings" -> {
+                        String nameTag = ((List<String>) value).get(0);
+                        atomicNameTag.set(nameTag.substring(12, nameTag.length() - 2));
+                    }
+                    case "descriptions" -> {
+                        List<Map<String, Object>> maps = (List<Map<String, Object>>) value;
+                        maps.forEach(map1 -> map1.forEach((key1, value1) -> {
+                            if (key1.equals("value")) {
+                                String value2 = (String) value1;
+                                if (value2.contains("sticker_info")) {
+                                    int amountOfStickers = value2.split("<img").length - 1;
 
 
-                                // the sticker data is only sent as html for displaying it so I have to manually
-                                // extract the sticker names from the html
-                                List<TransientSticker> stickers = new ArrayList<>();
-                                if (value2.contains("<br>Sticker:")) {
-                                    value2 = value2.substring(value2.indexOf("<br>Sticker:")).substring(12);
-                                    value2 = value2.substring(0, value2.indexOf("</center>"));
-                                    String[] split = value2.split(",");
-                                    for (int i = 0; i < split.length; i++) {
-                                        String stickerName = split[i];
-                                        stickerName = stickerName.trim();
+                                    // the sticker data is only sent as html for displaying it so I have to manually
+                                    // extract the sticker names from the html
+                                    List<Sticker> stickers = new ArrayList<>();
+                                    if (value2.contains("<br>Sticker:")) {
+                                        value2 = value2.substring(value2.indexOf("<br>Sticker:")).substring(12);
+                                        value2 = value2.substring(0, value2.indexOf("</center>"));
+                                        String[] split = value2.split(",");
+                                        for (int i = 0; i < split.length; i++) {
+                                            String stickerName = split[i];
+                                            stickerName = stickerName.trim().replaceAll(" {2,}", " "); // some stickers return doubled spaces for no reason
 
-                                        // some stickers include "," character
-                                        if (stickerName.endsWith("(Holo") ||
-                                            stickerName.endsWith("(Glitter") ||
-                                            stickerName.endsWith("(Gold") ||
-                                            stickerName.endsWith("Don't Worry") ||
-                                            stickerName.endsWith("Hi") ||
-                                            stickerName.endsWith("Run CT")) {
-                                            if (i < split.length - 1) {
-                                                if (!stickerName.endsWith("Don't Worry") ||
-                                                    (stickerName.endsWith("Don't Worry") && split[i + 1].endsWith("I'm Pro"))) {
-                                                    stickerName += "," + split[i + 1];
-                                                    stickerName = stickerName.trim();
-                                                    ++i; // skip next iteration
-                                                }
-                                            } else {
-                                                if (!stickerName.endsWith("Don't Worry")) {
-                                                    throw new IllegalStateException("Error reading stickers: " + value1);
+                                            // some stickers include "," character
+                                            for (String[] stickerNameWithCommas : stickerNamesWithCommas) {
+                                                if (stickerName.equals(stickerNameWithCommas[0])) {
+
+                                                    // the remaining length of the current stickerNameWithCommas that is checked
+                                                    int remainingCurrentStickerLength = stickerNameWithCommas.length - 1;
+
+                                                    // the remaining length in the sticker name returned by the api
+                                                    int remainingPossibleLength = split.length - i - 1;
+
+                                                    // if there is less length in the sticker names returned by the api
+                                                    // than in the current stickerNameWithCommas it can't be this specific sticker
+                                                    if (remainingPossibleLength < remainingCurrentStickerLength) {
+                                                        continue;
+                                                    }
+
+                                                    // we check all the next sections and compare whether the names are the same
+                                                    // if they aren't -> the sticker is not correct
+                                                    boolean correctSticker = true;
+                                                    for (int j = i + 1; j < i + 1 + remainingCurrentStickerLength; j++) {
+                                                        if (!split[j].equals(stickerNameWithCommas[j - i])) {
+                                                            correctSticker = false;
+                                                            break;
+                                                        }
+                                                    }
+
+                                                    if (!correctSticker) {
+                                                        continue;
+                                                    }
+
+                                                    // in this case the sticker names match. We join the name and return it.
+                                                    stickerName = String.join(",", stickerNameWithCommas);
+                                                    // remove all the next parts of the same name so they aren't stored twice
+                                                    i += remainingCurrentStickerLength;
                                                 }
                                             }
+
+                                            stickers.add(Sticker.builder().name(stickerName).stickerType(StickerType.ofName(stickerName)).build());
                                         }
 
-                                        // this sticker has two "," characters
-                                        if (stickerName.endsWith("Rock")) {
-                                            if (i < split.length - 2) {
-                                                if (split[i + 1].equals(" Paper")) {
-                                                    stickerName = stickerName + "," + split[i + 1] + "," + split[i + 2];
-                                                    stickerName = stickerName.trim();
-                                                    i += 2; // skip next 2 iterations
-                                                }
-                                            } else {
-                                                throw new IllegalStateException("Error reading stickers: " + value1);
-                                            }
+                                        if (stickers.size() != amountOfStickers) {
+                                            throw new IllegalStateException("Amount of stickers does not match for string: " + value1);
                                         }
 
-                                        // for some reason very few stickers contain doubled spaces
-                                        stickerName = stickerName.replaceAll(" {2}", " ");
-
-                                        stickers.add(TransientSticker.builder().name(stickerName).stickerType(StickerType.ofName(stickerName)).build());
+                                        atomicStickers.set(stickers);
                                     }
-
-                                    if (stickers.size() != amountOfStickers) {
-                                        throw new IllegalStateException("Amount of stickers does not match for string: " + value1);
-                                    }
-
-                                    atomicStickers.set(stickers);
+                                }
+                                if (value2.startsWith("Number of Items: ")) {
+                                    atomicStorageUnitAmount.set(Integer.parseInt(value2.substring(17).trim()));
                                 }
                             }
-                            if (value2.startsWith("Number of Items: ")) {
-                                atomicStorageUnitAmount.set(Integer.parseInt(value2.substring(17).trim()));
-                            }
-                        }
-                    }));
-                }
-                if (key.equals("tags")) {
-                    List<Map<String, Object>> maps = (List<Map<String, Object>>) value;
-                    maps.forEach(map1 -> {
-                        String category = (String) map1.get("category");
-                        switch (category) {
-                            case "ItemSet", "StickerCapsule", "PatchCapsule" -> atomicItemSet.set((String) map1.get("localized_tag_name"));
-                            case "Rarity" -> atomicRarity.set(Rarity.of((String) map1.get("localized_tag_name")));
-                            case "Exterior" -> atomicExterior.set(Exterior.of((String) map1.get("localized_tag_name")));
-                            case "Quality" -> {
-                                String quality = (String) map1.get("localized_tag_name");
-                                if (quality.startsWith("StatTrak")) {
-                                    atomicStatTrak.set(true);
-                                } else if (quality.startsWith("Souvenir")) {
-                                    atomicSouvenir.set(true);
+                        }));
+                    }
+                    case "tags" -> {
+                        List<Map<String, Object>> maps = (List<Map<String, Object>>) value;
+                        maps.forEach(map1 -> {
+                            String category = (String) map1.get("category");
+                            switch (category) {
+                                case "ItemSet", "StickerCapsule", "PatchCapsule" -> atomicItemSet.set((String) map1.get("localized_tag_name"));
+                                case "Rarity" -> atomicRarity.set(Rarity.of((String) map1.get("localized_tag_name")));
+                                case "Exterior" -> atomicExterior.set(Exterior.of((String) map1.get("localized_tag_name")));
+                                case "Quality" -> {
+                                    String quality = (String) map1.get("localized_tag_name");
+                                    if (quality.startsWith("StatTrak")) {
+                                        atomicStatTrak.set(true);
+                                    } else if (quality.startsWith("Souvenir")) {
+                                        atomicSouvenir.set(true);
+                                    }
                                 }
                             }
-                        }
-                    });
+                        });
+                    }
                 }
             });
 
             // The item is created in the unpackAssets() method
-            TransientClassId transientClassId = TransientClassId.of(atomicClassId.get());
-            TransientItem item = items.get(transientClassId);
+            UniqueItemTypeIdentifier identifier = new UniqueItemTypeIdentifier(atomicClassId.get(), atomicInstanceId.get());
+            ItemCollection item = items.get(identifier);
 
-            // Set parameters
-            item.setClassID(atomicClassId.get());
-            parseName(atomicName, item);
-            parseType(atomicType, item);
-            item.setNameTag(atomicNameTag.get());
-            item.setExterior(atomicExterior.get());
-            item.setStickers(atomicStickers.get());
-            item.setTradable(atomicTradable.get());
-            item.setStatTrak(atomicStatTrak.get());
-            item.setSouvenir(atomicSouvenir.get());
-            item.setRarity(atomicRarity.get());
-            item.setAmountStorageUnit(atomicStorageUnitAmount.get());
+            // Create the Item Type of the item collection
+            ItemType.ItemTypeBuilder itemTypeBuilder = ItemType.builder();
+            itemTypeBuilder.itemName(ItemName.builder().name(prune(atomicName.get())).build());
+            itemTypeBuilder.exterior(atomicExterior.get());
+            itemTypeBuilder.rarity(atomicRarity.get());
+            String type = prune(atomicCategory.get());
+            ItemCategory itemCategory = ItemCategory.builder().name(type).build();
+            itemTypeBuilder.category(itemCategory);
 
-            // not all items have an item set
             if (atomicItemSet.get() != null) {
-                item.setItemSet(TransientItemSet.builder().name(atomicItemSet.get()).build());
+                itemTypeBuilder.itemSet(ItemSet.builder().name(atomicItemSet.get()).build());
             }
 
+            // this can't happen, but better to check it
+            if (atomicSouvenir.get() && atomicStatTrak.get()) {
+                throw new IllegalStateException("Item can't be both Souvenir and StatTrak at the same time!");
+            }
 
-            items.put(transientClassId, item);
+            itemTypeBuilder.specialItemType(SpecialItemType.fromBooleans(atomicStatTrak.get(), atomicSouvenir.get()));
+
+            item.setItemType(itemTypeBuilder.build());
+
+            item.setStorageUnitAmount(atomicStorageUnitAmount.get());
+
+            item.setNameTag(atomicNameTag.get());
+
+            item.setStickers(atomicStickers.get());
+
+            items.put(identifier, item);
         });
-    }
-
-    /**
-     * Parses the name of the item.
-     *
-     * @param atomicName The atomic name.
-     * @param item       The item for which to set the name.
-     */
-    private void parseName(AtomicReference<String> atomicName, TransientItem item) {
-        String name = atomicName.get();
-        name = prune(name);
-        item.setName(name);
-    }
-
-    /**
-     * Parses the type of the item.
-     *
-     * @param atomicType The atomic type.
-     * @param item       The item for which to set the type.
-     */
-    private void parseType(AtomicReference<String> atomicType, TransientItem item) {
-        String type = atomicType.get();
-        type = prune(type);
-        if (types.get(type) != null) {
-            item.setCategory(types.get(type));
-        } else {
-            TransientItemCategory transientItemCategory = TransientItemCategory.builder().name(type).build();
-            types.put(type, transientItemCategory);
-            item.setCategory(transientItemCategory);
-        }
     }
 
     /**
@@ -267,7 +282,7 @@ public class HttpInventoryResponse {
      *
      * @return The transient items.
      */
-    public List<TransientItem> getTransientItems() {
+    public List<ItemCollection> getItemCollections() {
         return items.values().stream().toList();
     }
 

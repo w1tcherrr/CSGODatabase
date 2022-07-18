@@ -52,7 +52,7 @@ public class CSGOAccountMapper {
     MIN_ITEMS_FOR_ACCOUNT specifies how many items an inventory must have to be stored. This is to filter out most
     very obvious smurf accounts, which only have extremely few items.
      */
-    private static final long MAX_CSGO_ACCOUNTS = 1_000_000;
+    private static final long MAX_CSGO_ACCOUNTS = 2000;
     private static final long MIN_ITEMS_FOR_ACCOUNT = 10;
 
     /*
@@ -191,7 +191,7 @@ public class CSGOAccountMapper {
     private synchronized List<String> getIDs() {
         long max = MAX_CSGO_ACCOUNTS - alreadyMappedAccountsWithInventories;
         long amount = Math.max(max / AMOUNT_OF_PROXIES, 1);
-        amount = Math.min(amount, 20);
+        amount = Math.min(amount, 50);
         if (alreadyMappedAccountsWithInventories + amount > MAX_CSGO_ACCOUNTS) {
             amount = MAX_CSGO_ACCOUNTS - alreadyMappedAccountsWithInventories;
         }
@@ -238,8 +238,8 @@ public class CSGOAccountMapper {
             CSGOAccount.builder()
                 .id64(id64);
 
-        // Get the inventory for the user. If any of the needed calls fail the fetcher returns HttpResponseMappingStatus.FAILED. In this case we don't store the account.
-        if (csgoInventoryMapper.getInventory(accountBuilder, id64, template) == HttpResponseMappingStatus.FAILED) {
+        // Get the inventory for the user. If any of the needed calls fail the fetcher returns HttpResponseMappingStatus.TOO_MANY_REQUESTS. In this case we don't store the account.
+        if (csgoInventoryMapper.getInventory(accountBuilder, id64, template) == HttpResponseMappingStatus.TOO_MANY_REQUESTS) {
             return;
         }
 
@@ -260,12 +260,14 @@ public class CSGOAccountMapper {
                     --alreadyMappedAccountsWithInventories;
                     return;
                 }
-                if (acc.getCsgoInventory().getItems().size() >= MIN_ITEMS_FOR_ACCOUNT) {
+                if (acc.getCsgoInventory().getItemCollections().size() >= MIN_ITEMS_FOR_ACCOUNT) {
                     CSGOInventory inv = acc.getCsgoInventory();
-                    itemService.saveAll(inv.getItems());
+                    inv.setItemCollections(itemService.convert(inv.getItemCollections()));
+                    itemService.saveAll(inv.getItemCollections());
                     csgoInventoryService.save(acc.getCsgoInventory());
                 } else {
                     acc.setCsgoInventory(null);
+                    --alreadyMappedAccountsWithInventories;
                 }
             }
 
