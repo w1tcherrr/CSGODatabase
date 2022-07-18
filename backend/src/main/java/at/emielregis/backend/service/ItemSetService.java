@@ -1,6 +1,6 @@
 package at.emielregis.backend.service;
 
-import at.emielregis.backend.data.entities.ItemSet;
+import at.emielregis.backend.data.entities.items.ItemSet;
 import at.emielregis.backend.data.enums.Exterior;
 import at.emielregis.backend.repository.ItemSetRepository;
 import org.slf4j.Logger;
@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Component
@@ -97,7 +98,7 @@ public record ItemSetService(ItemSetRepository itemSetRepository) {
             "The eSports 2013 Winter Collection",
             "The eSports 2013 Collection",
             "The Bravo Collection")
-            .stream().sorted(Comparator.comparing(ItemSet::getName)).collect(Collectors.toList());
+            .stream().filter(Objects::nonNull).sorted(Comparator.comparing(ItemSet::getName)).collect(Collectors.toList());
     }
 
     public List<ItemSet> getAllSouvenirCollections() {
@@ -191,7 +192,7 @@ public record ItemSetService(ItemSetRepository itemSetRepository) {
             "Enfu Sticker Capsule",
             "Sticker Capsule",
             "Sticker Capsule 2"
-        );
+        ).stream().filter(Objects::nonNull).toList();
     }
 
     public List<ItemSet> getAllPatchCollections() {
@@ -204,6 +205,6 @@ public record ItemSetService(ItemSetRepository itemSetRepository) {
             "Operation Riptide Patch Collection",
             "CS:GO Patch Pack",
             "Half-Life: Alyx Patch Pack"
-        );
+        ).stream().filter(Objects::nonNull).toList();
     }
 }

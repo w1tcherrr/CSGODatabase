@@ -1,7 +1,7 @@
 package at.emielregis.backend.repository;
 
-import at.emielregis.backend.data.entities.ItemName;
-import at.emielregis.backend.data.enums.Rarity;
+import at.emielregis.backend.data.entities.items.ItemName;
+import at.emielregis.backend.data.entities.items.ItemSet;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -9,27 +9,20 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface ItemNameRepository extends JpaRepository<ItemName, Long> {
-    boolean existsByName(String name);
-
-    ItemName getByName(String name);
-
     @Query(
         "Select i from ItemName i where upper(i.name) like UPPER(CONCAT('%',:filter,'%'))"
     )
     List<ItemName> getSearch(@Param("filter") String filter);
 
-    @Query(
-        "Select distinct i.name from Item i where i.name.name like '%Sticker%' and i.itemSet IS NULL"
-    )
-    List<ItemName> getUnclassifiedStickerNames();
+    ItemName findByName(String name);
 
     @Query(
-        "Select distinct i.rarity from Item i where i.name = :name"
+        "Select count(i) > 0 from ItemType i where i.itemName = :name and i.exterior IS NOT NULL"
     )
-    List<Rarity> getRarityForItemName(@Param("name") ItemName name);
+    boolean itemNameHasExteriors(@Param("name") ItemName itemName);
 
     @Query(
-        "Select count(distinct i) from Item i where i.name = :name and i.rarity = :rarity"
+        "Select distinct i.itemName from ItemType i where i.itemSet = :set"
     )
-    int countByItemNameAndRarity(@Param("name") ItemName name, @Param("rarity") Rarity rarity);
+    List<ItemName> getAllNamesForSet(@Param("set") ItemSet set);
 }

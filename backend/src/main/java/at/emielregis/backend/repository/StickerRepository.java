@@ -1,18 +1,15 @@
 package at.emielregis.backend.repository;
 
-import at.emielregis.backend.data.entities.ItemSet;
-import at.emielregis.backend.data.entities.Sticker;
+import at.emielregis.backend.data.entities.items.ItemSet;
+import at.emielregis.backend.data.entities.items.Sticker;
+import at.emielregis.backend.data.enums.StickerType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface StickerRepository extends JpaRepository<Sticker, Long> {
-    boolean existsByName(String name);
-
-    Sticker getByName(String name);
-
     @Query(
-        "select sum(i.stickers.size) from Item i"
+        "select sum(i.stickers.size) from ItemCollection i"
     )
     long countDistinctApplied();
 
@@ -22,22 +19,27 @@ public interface StickerRepository extends JpaRepository<Sticker, Long> {
     long countDistinctNonApplied();
 
     @Query(
-        "select count (s) from Item i join i.stickers s where i.souvenir = false AND concat('Sticker | ', s.name) in (select distinct s1.name.name from Item s1 where s1.itemSet = :set)"
+        "select s from Sticker s where s.name = :name and s.stickerType = :type"
+    )
+    Sticker getByEquality(@Param("name") String name, @Param("type") StickerType stickerType);
+
+    @Query(
+        "select count (s) from ItemCollection i join i.stickers s where i.itemType.specialItemType <> at.emielregis.backend.data.enums.SpecialItemType.SOUVENIR AND concat('Sticker | ', s.name) in (select distinct s1.itemType.itemName.name from ItemCollection s1 where s1.itemType.itemSet = :set)"
     )
     long countTotalManuallyAppliedForSet(@Param("set") ItemSet set);
 
     @Query(
-        "select count (s) from Item i join i.stickers s where i.souvenir = true AND concat('Sticker | ', s.name) in (select distinct s1.name.name from Item s1 where s1.itemSet = :set)"
+        "select count (s) from ItemCollection i join i.stickers s where i.itemType.specialItemType = at.emielregis.backend.data.enums.SpecialItemType.SOUVENIR AND concat('Sticker | ', s.name) in (select distinct s1.itemType.itemName.name from ItemCollection s1 where s1.itemType.itemSet = :set)"
     )
     long countTotalSouvenirAppliedForSet(@Param("set") ItemSet set);
 
     @Query(
-        "select count (s) from Item i join i.stickers s where i.souvenir = false AND s.name = :name"
+        "select count (s) from ItemCollection i join i.stickers s where i.itemType.specialItemType <> at.emielregis.backend.data.enums.SpecialItemType.SOUVENIR AND s.name = :name"
     )
     Long countTotalManuallyAppliedForItemName(@Param("name") String name);
 
     @Query(
-        "select count (s) from Item i join i.stickers s where i.souvenir = true AND s.name = :name"
+        "select count (s) from ItemCollection i join i.stickers s where i.itemType.specialItemType = at.emielregis.backend.data.enums.SpecialItemType.SOUVENIR AND s.name = :name"
     )
     Long countTotalSouvenirAppliedForItemName(@Param("name") String name);
 }

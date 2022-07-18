@@ -1,6 +1,6 @@
 package at.emielregis.backend.service;
 
-import at.emielregis.backend.data.entities.ItemSet;
+import at.emielregis.backend.data.entities.items.ItemSet;
 import at.emielregis.backend.repository.ItemNameRepository;
 import at.emielregis.backend.repository.StickerRepository;
 import org.slf4j.Logger;

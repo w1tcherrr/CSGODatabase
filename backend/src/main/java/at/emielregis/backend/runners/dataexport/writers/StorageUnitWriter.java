@@ -1,12 +1,13 @@
 package at.emielregis.backend.runners.dataexport.writers;
 
-import at.emielregis.backend.data.entities.Item;
+import at.emielregis.backend.data.entities.items.ItemCollection;
 import at.emielregis.backend.runners.dataexport.SheetBuilder;
 import at.emielregis.backend.service.CSGOAccountService;
 import at.emielregis.backend.service.ItemCategoryService;
 import at.emielregis.backend.service.ItemNameService;
 import at.emielregis.backend.service.ItemService;
 import at.emielregis.backend.service.ItemSetService;
+import at.emielregis.backend.service.ItemTypeService;
 import at.emielregis.backend.service.SteamAccountService;
 import at.emielregis.backend.service.StickerService;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -22,8 +23,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component
 public class StorageUnitWriter extends AbstractDataWriter {
 
-    public StorageUnitWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService) {
-        super(itemService, steamAccountService, csgoAccountService, stickerService, itemSetService, itemNameService, itemCategoryService);
+    public StorageUnitWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, ItemTypeService itemTypeService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService) {
+        super(itemService, steamAccountService, csgoAccountService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
     }
 
     @Override
@@ -37,8 +38,8 @@ public class StorageUnitWriter extends AbstractDataWriter {
 
         List<String[]> lines = Collections.synchronizedList(new ArrayList<>());
 
-        List<Item> allStorageUnits = itemService.getAllNonEmptyStorageUnits();
-        List<String> nameTags = allStorageUnits.stream().map(Item::getNameTag).distinct().toList();
+        List<ItemCollection> allStorageUnits = itemService.getAllNonEmptyStorageUnits();
+        List<String> nameTags = allStorageUnits.stream().map(ItemCollection::getNameTag).distinct().toList();
 
         AtomicInteger index = new AtomicInteger(-1);
         int size = nameTags.size();
@@ -48,10 +49,10 @@ public class StorageUnitWriter extends AbstractDataWriter {
                 }
                 String[] line = new String[3];
 
-                List<Item> storageUnits = allStorageUnits.stream().filter(unit -> unit.getNameTag().equals(tag)).toList();
+                List<ItemCollection> storageUnits = allStorageUnits.stream().filter(unit -> unit.getNameTag().equals(tag)).toList();
                 line[0] = tag;
-                line[1] = "" + storageUnits.stream().mapToInt(Item::getAmount).sum();
-                line[2] = "" + storageUnits.stream().mapToInt(Item::getStorageUnitAmount).filter(Objects::nonNull).sum();
+                line[1] = "" + storageUnits.stream().mapToInt(ItemCollection::getAmount).sum();
+                line[2] = "" + storageUnits.stream().mapToInt(ItemCollection::getStorageUnitAmount).filter(Objects::nonNull).sum();
 
                 // we don't care about empty units
                 if (Integer.parseInt(line[2]) == 0) {
@@ -61,6 +62,8 @@ public class StorageUnitWriter extends AbstractDataWriter {
                 lines.add(line);
             }
         );
+
+        LOGGER.info("Finished mapping storage unit names.");
 
         // first sort alphabetically and then by the total amount - due to it being stable amount of same size will be alphabetically sorted
         lines.sort(Comparator.comparing(v -> v[0]));

@@ -1,10 +1,7 @@
 package at.emielregis.backend.repository;
 
-import at.emielregis.backend.data.entities.Item;
-import at.emielregis.backend.data.entities.ItemCategory;
-import at.emielregis.backend.data.entities.ItemName;
-import at.emielregis.backend.data.entities.ItemSet;
-import at.emielregis.backend.data.enums.Exterior;
+import at.emielregis.backend.data.entities.items.ItemCollection;
+import at.emielregis.backend.data.entities.items.ItemType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -13,90 +10,50 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Set;
 
-public interface ItemRepository extends JpaRepository<Item, Long> {
+public interface ItemRepository extends JpaRepository<ItemCollection, Long> {
     @Query(
-        "SELECT distinct i.id from CSGOInventory inv join inv.items i"
+        "SELECT distinct i.id from CSGOInventory inv join inv.itemCollections i"
     )
     Set<Long> getNormalItemIDs();
 
     @Query(
-        "SELECT count(distinct i.id) from CSGOInventory inv join inv.items i"
+        "SELECT count(distinct i.id) from CSGOInventory inv join inv.itemCollections i"
     )
     long normalItemCount();
 
     @Query(
-        "SELECT distinct i.id from Item i"
+        "SELECT distinct i.id from ItemCollection i"
     )
     Set<Long> getAllItemIDs();
 
     @Query(
-        "SELECT sum(i.amount) from Item i"
+        "SELECT sum(i.amount) from ItemCollection i"
     )
     long itemCountNoStorageUnits();
 
     @Query(
-        "SELECT sum(i.storageUnitAmount * i.amount) from Item i where i.storageUnitAmount IS NOT NULL"
+        "SELECT sum(i.storageUnitAmount * i.amount) from ItemCollection i where i.storageUnitAmount IS NOT NULL"
     )
-    long itemCountInStorageUnits();
-
-    @Query(
-        "SELECT distinct i.name from Item i where i.itemSet = :set"
-    )
-    List<ItemName> getAllNamesForSet(@Param("set") ItemSet set);
-
-    @Query(
-        "SELECT sum(i.amount) from Item i where i.name = :name"
-    )
-    long getTotalAmountForName(@Param("name") ItemName itemName);
-
-    @Query(
-        "SELECT sum(i.amount) from Item i where i.name in :names"
-    )
-    long getTotalAmountForNames(@Param("names") List<ItemName> search);
-
-    @Query(
-        "SELECT sum(i.amount) from Item i where i.category in :categories and i.name in :names"
-    )
-    long getTotalAmountOfContainersForNames(@Param("names") List<ItemName> names, @Param("categories") List<ItemCategory> containerSets);
-
-    @Query(
-        "SELECT sum(i.amount) from Item i where i.name = :name and (i.souvenir = TRUE OR i.statTrak = TRUE)"
-    )
-    Long getSouvenirOrStatTrakAmountForName(@Param("name") ItemName itemName);
-
-    @Query(
-        "SELECT count(i) > 0 from Item i where i.exterior IS NOT NULL and i.name = :name"
-    )
-    boolean itemNameHasExteriors(@Param("name") ItemName itemName);
-
-    @Query(
-        "SELECT sum(i.amount) from Item i where i.exterior = :exterior and i.name = :name and i.souvenir = :souvenir and i.statTrak = :statTrak"
-    )
-    Long countForExteriorAndType(@Param("name") ItemName itemName, @Param("exterior") Exterior exterior, @Param("statTrak") boolean statTrak, @Param("souvenir") boolean souvenir);
-
-    @Query(
-        "Select sum(i.amount) from Item i where i.itemSet = :set and i.category not in :containerCategories"
-    )
-    Long countForSetNoContainers(@Param("set") ItemSet set, @Param("containerCategories") List<ItemCategory> containerCategories);
-
-    @Query(
-        "Select sum(i.amount) from Item i where i.itemSet = :set and i.category in :containerCategories"
-    )
-    Long countContainersForSet(@Param("set") ItemSet set, @Param("containerCategories") List<ItemCategory> containerCategories);
+    Long itemCountInStorageUnits();
 
     @Modifying
     @Query(
-        "Delete from Item i where i.id = :id"
+        "Delete from ItemCollection i where i.id = :id"
     )
     void deleteById(@Param("id") Long id);
 
     @Query(
-        "Select count (i) from Item i where i.name.name = 'Storage Unit' and (i.nameTag IS NULL OR i.storageUnitAmount IS NULL OR i.storageUnitAmount = 0)"
+        "Select sum(i.amount) from ItemCollection i where i.itemType in :types"
     )
-    long getTotalAmountOfStorageUnitsWithNoName();
+    Long sumForItemTypes(@Param("types") List<ItemType> itemType);
 
     @Query(
-        "Select i from Item i where i.name.name = 'Storage Unit' and i.nameTag is NOT NULL and i.storageUnitAmount is NOT NULL and i.storageUnitAmount > 0"
+        "Select count(i) from ItemCollection i where i.itemType = :type and (i.storageUnitAmount IS NULL or i.storageUnitAmount = 0)"
     )
-    List<Item> getAllNonEmptyStorageUnits();
+    long countEmptyStorageUnits(@Param("type") ItemType storageUnitType);
+
+    @Query(
+        "Select i from ItemCollection i where i.itemType = :type and (i.storageUnitAmount IS NOT NULL AND i.storageUnitAmount > 0)"
+    )
+    List<ItemCollection> getAllNonEmptyStorageUnits(@Param("type") ItemType storageUnitType);
 }

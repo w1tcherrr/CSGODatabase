@@ -1,7 +1,9 @@
 package at.emielregis.backend.data.enums;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public enum Exterior {
     FACTORY_NEW("Factory New"),
@@ -33,6 +35,15 @@ public enum Exterior {
 
     public static List<Exterior> getBaseExteriors() {
         return new ArrayList<>(List.of(FACTORY_NEW, MINIMAL_WEAR, FIELD_TESTED, WELL_WORN, BATTLE_SCARRED));
+    }
+
+    public static List<Exterior> extendBaseExteriors(List<Exterior> exteriors) {
+        if (exteriors.contains(FACTORY_NEW) || exteriors.contains(MINIMAL_WEAR) || exteriors.contains(FIELD_TESTED) || exteriors.contains(WELL_WORN) || exteriors.contains(BATTLE_SCARRED)) {
+            exteriors.addAll(getBaseExteriors());
+        }
+        exteriors = exteriors.stream().distinct().collect(Collectors.toList());
+        exteriors.sort(Comparator.comparingInt(Enum::ordinal));
+        return exteriors;
     }
 
     public String getName() {

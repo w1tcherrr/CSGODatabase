@@ -1,7 +1,7 @@
 package at.emielregis.backend.data.enums;
 
 public enum HttpResponseMappingStatus {
-    FAILED,
+    TOO_MANY_REQUESTS,
     FORBIDDEN,
     UNKNOWN_EXCEPTION,
     SUCCESS
