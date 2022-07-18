@@ -52,7 +52,7 @@ public class CSGOAccountMapper {
     MIN_ITEMS_FOR_ACCOUNT specifies how many items an inventory must have to be stored. This is to filter out most
     very obvious smurf accounts, which only have extremely few items.
      */
-    private static final long MAX_CSGO_ACCOUNTS = 2000;
+    private static final long MAX_CSGO_ACCOUNTS = 100_000;
     private static final long MIN_ITEMS_FOR_ACCOUNT = 10;
 
     /*

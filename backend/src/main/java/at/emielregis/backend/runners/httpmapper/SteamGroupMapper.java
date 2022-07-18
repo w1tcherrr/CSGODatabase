@@ -109,7 +109,9 @@ public class SteamGroupMapper {
                 continue;
             }
 
-            if (response == null) { // should doesn't happen in practice
+            if (response == null || response.contains("An error was encountered while processing your request")) { // shouldn't happen in practice, unless the steam servers are broken
+                LOGGER.error("Error processing request for group: {}, page: {}. This means that the Steam Servers can not retrieve the members! " +
+                    "Please check whether Postman returns a correct request.", currentGroup, currentPage);
                 persistentDataService.freePage(currentGroup, currentPage);
                 continue;
             }

@@ -171,7 +171,7 @@ public class PersistentDataService {
      */
     @Transactional
     public void lockGroup(String currentGroup) {
-        LOGGER.info("PersistentDataService#getByName(" + currentGroup + ")");
+        LOGGER.info("PersistentDataService#lockGroup(" + currentGroup + ")");
         PersistentDataStore store = getInstance();
         List<SteamGroup> groups = store.getSteamGroups();
         SteamGroup group = getGroupByName(groups, currentGroup);
