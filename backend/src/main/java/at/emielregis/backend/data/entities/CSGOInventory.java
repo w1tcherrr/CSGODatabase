@@ -45,4 +45,8 @@ public class CSGOInventory {
     public int hashCode() {
         return getClass().hashCode();
     }
+
+    public long getTotalItemAmount() {
+        return itemCollections.stream().mapToLong(ItemCollection::getAmount).sum();
+    }
 }

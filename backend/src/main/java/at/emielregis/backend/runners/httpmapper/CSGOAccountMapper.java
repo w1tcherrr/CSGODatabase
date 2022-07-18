@@ -52,7 +52,7 @@ public class CSGOAccountMapper {
     MIN_ITEMS_FOR_ACCOUNT specifies how many items an inventory must have to be stored. This is to filter out most
     very obvious smurf accounts, which only have extremely few items.
      */
-    private static final long MAX_CSGO_ACCOUNTS = 100_000;
+    private static final long MAX_CSGO_ACCOUNTS = 1_000_000;
     private static final long MIN_ITEMS_FOR_ACCOUNT = 10;
 
     /*
@@ -260,12 +260,13 @@ public class CSGOAccountMapper {
                     --alreadyMappedAccountsWithInventories;
                     return;
                 }
-                if (acc.getCsgoInventory().getItemCollections().size() >= MIN_ITEMS_FOR_ACCOUNT) {
+                if (acc.getCsgoInventory().getTotalItemAmount() >= MIN_ITEMS_FOR_ACCOUNT) {
                     CSGOInventory inv = acc.getCsgoInventory();
                     inv.setItemCollections(itemService.convert(inv.getItemCollections()));
                     itemService.saveAll(inv.getItemCollections());
                     csgoInventoryService.save(acc.getCsgoInventory());
                 } else {
+                    LOGGER.info("Inventory does not have enough items and will not be stored.");
                     acc.setCsgoInventory(null);
                     --alreadyMappedAccountsWithInventories;
                 }
