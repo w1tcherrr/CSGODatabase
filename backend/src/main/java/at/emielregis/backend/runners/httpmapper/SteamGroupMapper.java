@@ -74,7 +74,7 @@ public class SteamGroupMapper {
         LOGGER.info("Already have {} accounts", currentAccounts);
 
         // 10.000 buffer accounts - whenever there are less than 10.000 accounts left new accounts are searched for.
-        while (currentAccounts < (csgoAccountService.count() + 25_000)) {
+        while (currentAccounts < (csgoAccountService.count() + 10_000)) {
             String currentGroup;
             long currentPage;
 

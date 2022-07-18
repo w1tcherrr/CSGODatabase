@@ -1,7 +1,8 @@
 package at.emielregis.backend.runners.dataexport.writers;
 
-import at.emielregis.backend.data.entities.ItemName;
-import at.emielregis.backend.data.entities.ItemSet;
+import at.emielregis.backend.data.entities.items.ItemName;
+import at.emielregis.backend.data.entities.items.ItemSet;
+import at.emielregis.backend.data.entities.items.ItemType;
 import at.emielregis.backend.data.enums.Exterior;
 import at.emielregis.backend.runners.dataexport.SheetBuilder;
 import at.emielregis.backend.service.CSGOAccountService;
@@ -9,6 +10,7 @@ import at.emielregis.backend.service.ItemCategoryService;
 import at.emielregis.backend.service.ItemNameService;
 import at.emielregis.backend.service.ItemService;
 import at.emielregis.backend.service.ItemSetService;
+import at.emielregis.backend.service.ItemTypeService;
 import at.emielregis.backend.service.SteamAccountService;
 import at.emielregis.backend.service.StickerService;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -43,9 +45,10 @@ public abstract class AbstractDataWriter {
     protected final ItemSetService itemSetService;
     protected final ItemNameService itemNameService;
     protected final ItemCategoryService itemCategoryService;
+    protected final ItemTypeService itemTypeService;
 
     public AbstractDataWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService,
-                              StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService) {
+                              StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService, ItemTypeService itemTypeService) {
         this.itemService = itemService;
         this.steamAccountService = steamAccountService;
         this.csgoAccountService = csgoAccountService;
@@ -53,6 +56,7 @@ public abstract class AbstractDataWriter {
         this.itemSetService = itemSetService;
         this.itemNameService = itemNameService;
         this.itemCategoryService = itemCategoryService;
+        this.itemTypeService = itemTypeService;
     }
 
     public void writeWorkbook(String fileName) {
@@ -126,7 +130,7 @@ public abstract class AbstractDataWriter {
     protected List<String[]> createLinesForItemSet(ItemSet set) {
         LOGGER.info("AbstractDataWriter#createLinesForItemSet(" + set.toString() + ")");
 
-        List<ItemName> allValidItemNames = itemService.getAllNamesForSet(set);
+        List<ItemType> allValidItemTypes = itemTypeService.getAllTypesForSet(set);
 
         List<String[]> lines = Collections.synchronizedList(new ArrayList<>());
         AtomicInteger index = new AtomicInteger(1);
@@ -136,6 +140,8 @@ public abstract class AbstractDataWriter {
         titleArray[1] = "Total Amount";
 
         List<Exterior> exteriors = itemSetService.getExteriorsForItemSet(set);
+
+        exteriors = Exterior.extendBaseExteriors(exteriors);
 
         boolean setHasStatTrak = itemSetService.hasStatTrakForItemSet(set);
         boolean setHasSouvenir = itemSetService.hasSouvenirForItemSet(set);
@@ -163,11 +169,12 @@ public abstract class AbstractDataWriter {
             }
         }
 
-        int totalAmount = allValidItemNames.size();
-        allValidItemNames.parallelStream().forEach(itemName -> {
-            LOGGER.info("Analysing item " + index.getAndIncrement() + "/" + totalAmount + ": " + itemName);
+        int totalAmount = allValidItemTypes.size();
+        List<Exterior> finalExteriors = exteriors;
+        allValidItemTypes.parallelStream().forEach(itemType -> {
+            LOGGER.info("Analysing item " + index.getAndIncrement() + "/" + totalAmount + ": " + itemType);
 
-            String[] currentLine = formatLineForItemName(itemName, setHasStatTrak, setHasSouvenir, exteriors);
+            String[] currentLine = formatLineForItemName(itemType.getItemName(), setHasStatTrak, setHasSouvenir, finalExteriors);
 
             lines.add(currentLine);
         });
@@ -187,15 +194,21 @@ public abstract class AbstractDataWriter {
         // souvenir or stattrak count
 
         if (hasSouvenir || hasStatTrak) {
-            long amount = itemService.getSouvenirOrStatTrakAmountForName(itemName);
+            long amount;
+            if (hasSouvenir) {
+                amount = itemService.getSouvenirAmountForName(itemName);
+            } else {
+                amount = itemService.getStatTrakAmountForName(itemName);
+            }
             if (amount > 0) {
                 line[2] = "" + amount;
             }
         }
 
         // some items inside the collection might not have an exterior
-        if (possibleExteriors != null && itemService.itemNameHasExteriors(itemName)) {
+        if (possibleExteriors != null && itemNameService.itemNameHasExteriors(itemName)) {
             int index = 4;
+
             for (Exterior exterior : possibleExteriors) {
                 long amount = itemService.countForExteriorAndType(itemName, exterior, false, false);
                 if (amount > 0) {
@@ -224,13 +237,17 @@ public abstract class AbstractDataWriter {
 
     protected CellStyle getStyleForName(Workbook workbook, String itemNameName) {
         LOGGER.info("AbstractDataWriter#getStyleForName(" + itemNameName + ")");
-        IndexedColors color = itemNameService.getRarityForItemNameName(itemNameName).getColor();
         CellStyle cellStyle = workbook.createCellStyle();
         XSSFFont font = ((XSSFWorkbook) workbook).createFont();
         font.setFontName("Serif");
         font.setFontHeightInPoints((short) 11);
         cellStyle.setFont(font);
-        cellStyle.setFillForegroundColor(color.getIndex());
+        if (itemNameName.contains("★")) {
+            cellStyle.setFillForegroundColor(IndexedColors.GOLD.getIndex());
+        } else {
+            IndexedColors color = itemNameService.getRarityForItemNameName(itemNameName).getColor();
+            cellStyle.setFillForegroundColor(color.getIndex());
+        }
         cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         return cellStyle;
     }

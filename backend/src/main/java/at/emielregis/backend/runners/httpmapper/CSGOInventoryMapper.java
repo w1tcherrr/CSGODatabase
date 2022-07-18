@@ -1,12 +1,11 @@
 package at.emielregis.backend.runners.httpmapper;
 
-import at.emielregis.backend.data.dtos.TransientItem;
 import at.emielregis.backend.data.entities.CSGOAccount;
 import at.emielregis.backend.data.entities.CSGOInventory;
+import at.emielregis.backend.data.entities.items.ItemCollection;
 import at.emielregis.backend.data.enums.HttpResponseMappingStatus;
 import at.emielregis.backend.data.responses.HttpInventoryResponse;
 import at.emielregis.backend.service.BusyWaitingService;
-import at.emielregis.backend.service.ItemService;
 import at.emielregis.backend.service.UrlProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,14 +24,11 @@ import java.util.List;
 public class CSGOInventoryMapper {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    private final ItemService itemService;
     private final UrlProvider urlProvider;
     private final BusyWaitingService busyWaitingService;
 
-    public CSGOInventoryMapper(ItemService itemService,
-                               UrlProvider urlProvider,
+    public CSGOInventoryMapper(UrlProvider urlProvider,
                                BusyWaitingService busyWaitingService) {
-        this.itemService = itemService;
         this.urlProvider = urlProvider;
         this.busyWaitingService = busyWaitingService;
     }
@@ -67,14 +63,14 @@ public class CSGOInventoryMapper {
                 busyWaitingService.wait(5);
                 return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
             }
-            return HttpResponseMappingStatus.FAILED;
+            return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
         }
 
         if (httpInventoryResponse == null || !httpInventoryResponse.successful()) {
-            return HttpResponseMappingStatus.FAILED;
+            return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
         }
 
-        List<TransientItem> itemList = httpInventoryResponse.getTransientItems();
+        List<ItemCollection> itemList = httpInventoryResponse.getItemCollections();
 
         // if there are more than 500 items send a second request
         if (httpInventoryResponse.hasMoreItems()) {
@@ -92,11 +88,11 @@ public class CSGOInventoryMapper {
                     busyWaitingService.wait(5);
                     return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
                 }
-                return HttpResponseMappingStatus.FAILED;
+                return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
             }
 
             if (httpInventoryResponse1 == null) {
-                return HttpResponseMappingStatus.FAILED;
+                return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
             }
 
             itemList = combineLists(itemList, httpInventoryResponse1);
@@ -117,11 +113,11 @@ public class CSGOInventoryMapper {
                         busyWaitingService.wait(5);
                         return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
                     }
-                    return HttpResponseMappingStatus.FAILED;
+                    return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
                 }
 
                 if (httpInventoryResponse2 == null) {
-                    return HttpResponseMappingStatus.FAILED;
+                    return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
                 }
 
                 itemList = combineLists(itemList, httpInventoryResponse2);
@@ -129,10 +125,7 @@ public class CSGOInventoryMapper {
         }
 
         // set the inventory into the builder
-        CSGOInventory.CSGOInventoryBuilder builder = CSGOInventory.builder().items(
-            // convert the transient items into normal items
-            itemService.convert(itemList)
-        );
+        CSGOInventory.CSGOInventoryBuilder builder = CSGOInventory.builder().itemCollections(itemList);
         CSGOInventory inventory = builder.build();
         accountBuilder.csgoInventory(inventory);
 
@@ -146,17 +139,18 @@ public class CSGOInventoryMapper {
      * @param httpInventoryResponse1 the response containing the second list of items
      * @return The combined list
      */
-    private List<TransientItem> combineLists(List<TransientItem> transientItems, HttpInventoryResponse httpInventoryResponse1) {
-        transientItems = new ArrayList<>(transientItems);
-        for (TransientItem item : httpInventoryResponse1.getTransientItems()) {
-            TransientItem item1 = getByObject(transientItems, item);
+    private List<ItemCollection> combineLists(List<ItemCollection> transientItems, HttpInventoryResponse httpInventoryResponse1) {
+        var returnList = new ArrayList<ItemCollection>();
+        for (ItemCollection item : httpInventoryResponse1.getItemCollections()) {
+            ItemCollection item1 = getByObject(transientItems, item);
             if (item1 != null) {
                 item1.setAmount(item.getAmount() + item1.getAmount());
+                returnList.add(item1);
             } else {
-                transientItems.add(item);
+                returnList.add(item);
             }
         }
-        return transientItems;
+        return returnList;
     }
 
     /**
@@ -164,10 +158,10 @@ public class CSGOInventoryMapper {
      * @param item           The item to be searched
      * @return The item with the same class id in the list, otherwise null.
      */
-    private TransientItem getByObject(List<TransientItem> transientItems, TransientItem item) {
-        for (TransientItem transientItem : transientItems) {
-            if (transientItem.equals(item)) {
-                return transientItem;
+    private ItemCollection getByObject(List<ItemCollection> transientItems, ItemCollection item) {
+        for (ItemCollection itemCollection : transientItems) {
+            if (itemCollection.deepEquals(item)) {
+                return itemCollection;
             }
         }
         return null;

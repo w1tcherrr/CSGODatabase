@@ -1,16 +1,11 @@
 package at.emielregis.backend.service.mapper;
 
-import at.emielregis.backend.data.dtos.TransientItem;
-import at.emielregis.backend.data.dtos.TransientItemCategory;
-import at.emielregis.backend.data.dtos.TransientItemSet;
-import at.emielregis.backend.data.dtos.TransientSticker;
-import at.emielregis.backend.data.entities.ClassID;
-import at.emielregis.backend.data.entities.Item;
-import at.emielregis.backend.data.entities.ItemCategory;
-import at.emielregis.backend.data.entities.ItemName;
-import at.emielregis.backend.data.entities.ItemSet;
-import at.emielregis.backend.data.entities.Sticker;
-import at.emielregis.backend.repository.ClassIdRepository;
+import at.emielregis.backend.data.entities.items.ItemCategory;
+import at.emielregis.backend.data.entities.items.ItemCollection;
+import at.emielregis.backend.data.entities.items.ItemName;
+import at.emielregis.backend.data.entities.items.ItemSet;
+import at.emielregis.backend.data.entities.items.ItemType;
+import at.emielregis.backend.data.entities.items.Sticker;
 import at.emielregis.backend.repository.ItemCategoryRepository;
 import at.emielregis.backend.repository.ItemNameRepository;
 import at.emielregis.backend.repository.ItemSetRepository;
@@ -20,13 +15,13 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Component
 public record Mapper(ItemTypeRepository itemTypeRepository,
                      StickerRepository stickerRepository,
                      ItemCategoryRepository itemCategoryRepository,
                      ItemNameRepository itemNameRepository,
-                     ClassIdRepository classIdRepository,
                      ItemSetRepository itemSetRepository) {
 
     /**
@@ -36,72 +31,93 @@ public record Mapper(ItemTypeRepository itemTypeRepository,
      * @param transientItem The item to be mapped.
      * @return The database entity (not stored in the database yet!).
      */
-    public synchronized Item map(TransientItem transientItem) {
-        return Item.builder()
-            .classID(mapClassId(transientItem.getClassID()))
+    public synchronized ItemCollection convertToNonTransient(ItemCollection transientItem) {
+        return ItemCollection.builder()
             .amount(transientItem.getAmount())
-            .name(map(transientItem.getName()))
             .nameTag(transientItem.getNameTag())
-            .tradable(transientItem.isTradable())
-            .statTrak(transientItem.isStatTrak())
-            .souvenir(transientItem.isSouvenir())
-            .category(map(transientItem.getCategory()))
+            .storageUnitAmount(transientItem.getStorageUnitAmount())
+            .itemType(map(transientItem.getItemType()))
             .stickers(map(transientItem.getStickers()))
-            .exterior(transientItem.getExterior())
-            .itemSet(map(transientItem.getItemSet()))
-            .rarity(transientItem.getRarity())
-            .storageUnitAmount(transientItem.getAmountStorageUnit())
             .build();
     }
 
-    private ClassID mapClassId(String classId) {
-        if (classIdRepository.existsByClassId(classId)) {
-            return classIdRepository.getByClassId(classId);
-        }
-        ClassID id = ClassID.builder().classId(classId).build();
-        return classIdRepository.save(id);
-    }
+    private ItemType map(ItemType itemType) {
+        ItemSet alreadyStoredSet = null;
+        ItemCategory alreadyStoredCategory = null;
+        ItemName alreadyStoredName = null;
 
-    private ItemCategory map(TransientItemCategory type) {
-        if (itemTypeRepository.existsByName(type.getName())) {
-            return itemTypeRepository.getByName(type.getName());
-        }
-        ItemCategory category = ItemCategory.builder().name(type.getName()).build();
-        return itemCategoryRepository.save(category);
-    }
+        boolean setSet = false;
+        boolean categorySet = false;
+        boolean nameSet = false;
 
-    private List<Sticker> map(List<TransientSticker> stickers) {
-        if (stickers == null) {
-            return new ArrayList<>();
-        }
-        List<Sticker> stickerList = new ArrayList<>();
-        for (TransientSticker sticker : stickers) {
-            if (stickerRepository.existsByName(sticker.getName())) {
-                stickerList.add(stickerRepository.getByName(sticker.getName()));
+        if (itemType.getItemSet() != null) {
+            alreadyStoredSet = itemSetRepository.findByName(itemType.getItemSet().getName());
+            if (alreadyStoredSet == null) {
+                alreadyStoredSet = itemSetRepository.save(itemType.getItemSet());
             } else {
-                Sticker sticker1 = Sticker.builder().name(sticker.getName()).stickerType(sticker.getStickerType()).build();
-                stickerList.add(stickerRepository.save(sticker1));
+                setSet = true;
+            }
+        } else {
+            setSet = true;
+        }
+
+        if (itemType.getCategory() != null) {
+            alreadyStoredCategory = itemCategoryRepository.findByName(itemType.getCategory().getName());
+            if (alreadyStoredCategory == null) {
+                alreadyStoredCategory = itemCategoryRepository.save(itemType.getCategory());
+            } else {
+                categorySet = true;
+            }
+        } else {
+            categorySet = true;
+        }
+
+        if (itemType.getItemName() != null) {
+            alreadyStoredName = itemNameRepository.findByName(itemType.getItemName().getName());
+            if (alreadyStoredName == null) {
+                alreadyStoredName = itemNameRepository.save(itemType.getItemName());
+            } else {
+                nameSet = true;
+            }
+        } else {
+            nameSet = true;
+        }
+
+        if (setSet && categorySet && nameSet) {
+            ItemType alreadyStoredType = itemTypeRepository.findByEquality(alreadyStoredSet, alreadyStoredCategory, alreadyStoredName,
+                itemType.getExterior(), itemType.getRarity(), itemType.getSpecialItemType());
+            if (alreadyStoredType != null) {
+                return alreadyStoredType;
             }
         }
-        return stickerList;
+
+        return itemTypeRepository.save(
+            ItemType.builder()
+                .itemName(alreadyStoredName)
+                .category(alreadyStoredCategory)
+                .itemSet(alreadyStoredSet)
+                .exterior(itemType.getExterior())
+                .rarity(itemType.getRarity())
+                .specialItemType(itemType.getSpecialItemType())
+                .build()
+        );
     }
 
-    private ItemName map(String name) {
-        if (itemNameRepository.existsByName(name)) {
-            return itemNameRepository.getByName(name);
+    private List<Sticker> map(List<Sticker> stickers) {
+        List<Sticker> mappedStickers = new ArrayList<>();
+        if (stickers == null) {
+            return mappedStickers;
         }
-        ItemName name1 = ItemName.builder().name(name).build();
-        return itemNameRepository.save(name1);
-    }
-
-    private ItemSet map(TransientItemSet itemSet) {
-        if (itemSet == null) {
-            return null;
+        for (Sticker sticker : stickers) {
+            Sticker storedSticker = stickerRepository.getByEquality(sticker.getName(), sticker.getStickerType());
+            mappedStickers.add(Objects.requireNonNullElseGet(storedSticker,
+                () -> stickerRepository.save(
+                    Sticker.builder()
+                        .name(sticker.getName())
+                        .stickerType(sticker.getStickerType())
+                        .build()
+                )));
         }
-        if (itemSetRepository.existsByName(itemSet.getName())) {
-            return itemSetRepository.getByName(itemSet.getName());
-        }
-        ItemSet itemSet1 = ItemSet.builder().name(itemSet.getName()).build();
-        return itemSetRepository.save(itemSet1);
+        return mappedStickers;
     }
 }

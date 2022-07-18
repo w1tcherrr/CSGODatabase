@@ -1,4 +1,4 @@
-package at.emielregis.backend.data.entities;
+package at.emielregis.backend.data.entities.items;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,40 +8,46 @@ import lombok.Setter;
 import org.hibernate.Hibernate;
 
 import javax.persistence.Column;
-import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import java.util.List;
 import java.util.Objects;
 
-@Entity
 @Builder
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Setter
-public class SteamGroup {
+@Entity
+public class ItemCategory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, updatable = false, nullable = false)
     private String name;
 
-    @ElementCollection
-    private List<Integer> mappedPages;
-
-    @Column
-    private boolean locked;
+    @Override
+    public String toString() {
+        return name;
+    }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
-        SteamGroup that = (SteamGroup) o;
-        return Objects.equals(name, that.name);
+        ItemCategory that = (ItemCategory) o;
+        return id != null && Objects.equals(id, that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
+
+    public boolean deepEquals(ItemCategory category) {
+        return this.name.equals(category.getName());
     }
 }

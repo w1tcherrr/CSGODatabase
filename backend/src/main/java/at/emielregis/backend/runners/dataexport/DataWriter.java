@@ -1,7 +1,7 @@
 package at.emielregis.backend.runners.dataexport;
 
-import at.emielregis.backend.runners.dataexport.writers.CombinedDataWriter;
 import at.emielregis.backend.runners.dataexport.writers.CaseWriter;
+import at.emielregis.backend.runners.dataexport.writers.CombinedDataWriter;
 import at.emielregis.backend.runners.dataexport.writers.MajorWriter;
 import at.emielregis.backend.runners.dataexport.writers.MiscellaneousDataWriter;
 import at.emielregis.backend.runners.dataexport.writers.PatchWriter;
