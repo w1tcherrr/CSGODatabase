@@ -56,11 +56,7 @@ public class ItemPriceMapper {
         LOGGER.info("RUNNING ITEM PRICE MAPPER");
         parseSkinPortPrices();
         parseCsgoBackPackPrices();
-        priceDtos.values().forEach(list -> {
-            if (list.size() != 2) {
-                System.out.println(list + "\n\n");
-            }
-        });
+        LOGGER.info("FINISHED ITEM PRICE MAPPER");
     }
 
     private void parseSkinPortPrices() {
@@ -151,8 +147,6 @@ public class ItemPriceMapper {
         });
 
         proxyService.await();
-
-        System.out.println(successful.stream().sorted(Comparator.comparingInt(v -> v)).collect(Collectors.toList()));
     }
 
     private synchronized void addDtos(IPriceResponse response) {

@@ -31,7 +31,7 @@ public class MainRunner implements ApplicationContextAware {
      */
     @EventListener(ApplicationReadyEvent.class)
     public void run() {
-        csgoAccountMapper.start();
+        //csgoAccountMapper.start();
         itemPriceMapper.start();
         dataWriter.write();
         exit();
