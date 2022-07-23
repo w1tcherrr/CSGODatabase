@@ -63,4 +63,8 @@ public class ItemNameService {
     public List<ItemName> getAllNamesForSet(ItemSet set) {
         return itemNameRepository.getAllNamesForSet(set);
     }
+
+    public List<ItemName> getAll() {
+        return itemNameRepository.findAll();
+    }
 }

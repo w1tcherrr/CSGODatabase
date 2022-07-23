@@ -29,7 +29,7 @@ import java.util.Objects;
 public class ItemType {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
 
     @ManyToOne(optional = false)
@@ -50,6 +50,9 @@ public class ItemType {
     @Column(nullable = false, updatable = false)
     private SpecialItemType specialItemType;
 
+    @Column(updatable = false)
+    private String marketHashName;
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -67,9 +70,10 @@ public class ItemType {
         return this.exterior == itemType.exterior &&
             this.itemName.deepEquals(itemType.getItemName()) &&
             this.category.deepEquals(itemType.getCategory()) &&
-            compareItemSets(itemSet, itemType.getItemSet()) &&
+            Objects.equals(this.marketHashName, itemType.marketHashName) &&
             this.rarity == itemType.getRarity() &&
-            this.specialItemType == itemType.getSpecialItemType();
+            this.specialItemType == itemType.getSpecialItemType() &&
+            compareItemSets(itemSet, itemType.getItemSet());
     }
 
     private boolean compareItemSets(ItemSet itemSet, ItemSet itemSet1) {

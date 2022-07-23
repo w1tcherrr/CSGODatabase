@@ -16,7 +16,6 @@ public class SteamAccountService {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private final SteamAccountRepository steamAccountRepository;
-    private boolean initialized = false;
     private List<String> ids = new ArrayList<>();
 
     public SteamAccountService(SteamAccountRepository steamAccountRepository) {
@@ -37,10 +36,6 @@ public class SteamAccountService {
      */
     public synchronized List<String> findNextIds(long amount) {
         LOGGER.info("SteamAccountService#findNextIds(" + amount + ")");
-        if (!initialized) { // initialize on the first call
-            initialized = true;
-            init();
-        }
         if (ids.size() < 1_000) { // if not enough ids are left fetch all new ids
             init();
         }

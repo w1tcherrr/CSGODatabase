@@ -19,7 +19,7 @@ public class CSGOAccountService {
 
     public void save(CSGOAccount account) {
         LOGGER.info("CSGOAccountService#save()");
-        CSGOAccountRepository.save(account);
+        CSGOAccountRepository.saveAndFlush(account);
     }
 
     public boolean containsById64(String id64) {

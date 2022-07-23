@@ -20,6 +20,7 @@ public interface ItemTypeRepository extends JpaRepository<ItemType, Long> {
             "((t.itemSet IS NULL and :set IS NULL) OR t.itemSet = :set) and " +
             "t.category = :category and " +
             "((t.exterior IS NULL and :exterior is NULL) OR t.exterior = :exterior) and " +
+            "((t.marketHashName IS NULL and :markethash is NULL) or t.marketHashName = :markethash) and " +
             "t.rarity = :rarity and " +
             "t.specialItemType = :specialitemtype"
     )
@@ -28,7 +29,8 @@ public interface ItemTypeRepository extends JpaRepository<ItemType, Long> {
                             @Param("name") ItemName alreadyStoredName,
                             @Param("exterior") Exterior exterior,
                             @Param("rarity") Rarity rarity,
-                            @Param("specialitemtype") SpecialItemType specialItemType);
+                            @Param("specialitemtype") SpecialItemType specialItemType,
+                            @Param("markethash") String marketHashName);
 
     @Query(
         "Select i from ItemType i where i.itemName.name like 'Sticker%' and i.itemSet IS NULL"

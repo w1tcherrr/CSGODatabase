@@ -11,20 +11,11 @@ import java.util.List;
 import java.util.Set;
 
 public interface ItemRepository extends JpaRepository<ItemCollection, Long> {
-    @Query(
-        "SELECT distinct i.id from CSGOInventory inv join inv.itemCollections i"
-    )
-    Set<Long> getNormalItemIDs();
 
     @Query(
         "SELECT count(distinct i.id) from CSGOInventory inv join inv.itemCollections i"
     )
     long normalItemCount();
-
-    @Query(
-        "SELECT distinct i.id from ItemCollection i"
-    )
-    Set<Long> getAllItemIDs();
 
     @Query(
         "SELECT sum(i.amount) from ItemCollection i"
@@ -56,4 +47,14 @@ public interface ItemRepository extends JpaRepository<ItemCollection, Long> {
         "Select i from ItemCollection i where i.itemType = :type and (i.storageUnitAmount IS NOT NULL AND i.storageUnitAmount > 0)"
     )
     List<ItemCollection> getAllNonEmptyStorageUnits(@Param("type") ItemType storageUnitType);
+
+    @Query(
+        "Select i.id from ItemCollection i where i not in (select i1 from CSGOInventory inv join inv.itemCollections i1)"
+    )
+    Set<Long> getOrphanedItemIds();
+
+    @Query(
+        "Select sum(i.amount) from ItemCollection i where i.itemType = :type"
+    )
+    int getTotalAmountForType(@Param("type") ItemType type);
 }

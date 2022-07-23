@@ -21,7 +21,7 @@ public class CSGOInventoryService {
 
     public void save(CSGOInventory inventory) {
         LOGGER.info("CSGOInventoryService#save()");
-        csgoInventoryRepository.save(inventory);
+        csgoInventoryRepository.saveAndFlush(inventory);
     }
 
     public long count() {

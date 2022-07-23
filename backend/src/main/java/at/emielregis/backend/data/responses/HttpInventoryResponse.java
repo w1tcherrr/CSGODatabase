@@ -116,6 +116,7 @@ public class HttpInventoryResponse {
             final AtomicReference<Rarity> atomicRarity = new AtomicReference<>();
             final AtomicReference<Integer> atomicStorageUnitAmount = new AtomicReference<>();
             final AtomicReference<List<Sticker>> atomicStickers = new AtomicReference<>();
+            final AtomicReference<String> atomicMarketHashName = new AtomicReference<>();
             map.forEach((key, value) -> {
                 switch (key) {
                     case "name" -> atomicName.set((String) value);
@@ -126,6 +127,7 @@ public class HttpInventoryResponse {
                         String nameTag = ((List<String>) value).get(0);
                         atomicNameTag.set(nameTag.substring(12, nameTag.length() - 2));
                     }
+                    case "market_hash_name" -> atomicMarketHashName.set((String) value);
                     case "descriptions" -> {
                         List<Map<String, Object>> maps = (List<Map<String, Object>>) value;
                         maps.forEach(map1 -> map1.forEach((key1, value1) -> {
@@ -204,7 +206,7 @@ public class HttpInventoryResponse {
                         maps.forEach(map1 -> {
                             String category = (String) map1.get("category");
                             switch (category) {
-                                case "ItemSet", "StickerCapsule", "PatchCapsule" -> atomicItemSet.set((String) map1.get("localized_tag_name"));
+                                case "ItemSet", "StickerCapsule", "PatchCapsule", "SprayCapsule" -> atomicItemSet.set((String) map1.get("localized_tag_name"));
                                 case "Rarity" -> atomicRarity.set(Rarity.of((String) map1.get("localized_tag_name")));
                                 case "Exterior" -> atomicExterior.set(Exterior.of((String) map1.get("localized_tag_name")));
                                 case "Quality" -> {
@@ -230,6 +232,7 @@ public class HttpInventoryResponse {
             itemTypeBuilder.itemName(ItemName.builder().name(prune(atomicName.get())).build());
             itemTypeBuilder.exterior(atomicExterior.get());
             itemTypeBuilder.rarity(atomicRarity.get());
+            itemTypeBuilder.marketHashName(atomicMarketHashName.get());
             String type = prune(atomicCategory.get());
             ItemCategory itemCategory = ItemCategory.builder().name(type).build();
             itemTypeBuilder.category(itemCategory);

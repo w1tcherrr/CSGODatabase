@@ -46,17 +46,7 @@ public class ItemService {
 
     public void saveAll(List<ItemCollection> itemCollections) {
         LOGGER.info("ItemService#saveAll()");
-        itemRepository.saveAll(itemCollections);
-    }
-
-    public Set<Long> getAllItemIDs() {
-        LOGGER.info("ItemService#getAllItemIDs()");
-        return itemRepository.getAllItemIDs();
-    }
-
-    public Set<Long> getNormalItemIDs() {
-        LOGGER.info("ItemService#getNormalItemIDs()");
-        return itemRepository.getNormalItemIDs();
+        itemRepository.saveAllAndFlush(itemCollections);
     }
 
     public List<ItemCollection> convert(List<ItemCollection> itemList) {
@@ -79,17 +69,17 @@ public class ItemService {
     }
 
     public long countNormalItems() {
-        LOGGER.info("ItemService#getNormalItemCount()");
+        LOGGER.info("ItemService#countNormalItems()");
         return itemRepository.normalItemCount();
     }
 
     public long countItemsNoStorageUnits() {
-        LOGGER.info("ItemService#itemCountNoStorageUnits()");
+        LOGGER.info("ItemService#countItemsNoStorageUnits()");
         return itemRepository.itemCountNoStorageUnits();
     }
 
     public long countItemsInStorageUnits() {
-        LOGGER.info("ItemService#itemCountOnlyStorageUnits()");
+        LOGGER.info("ItemService#countItemsInStorageUnits()");
         Long amount = itemRepository.itemCountInStorageUnits();
         if (amount == null) {
             return 0;
@@ -248,5 +238,13 @@ public class ItemService {
             return 0;
         }
         return amount;
+    }
+
+    public Set<Long> getOrphanedIDs() {
+        return itemRepository.getOrphanedItemIds();
+    }
+
+    public int getTotalAmountForType(ItemType type) {
+        return itemRepository.getTotalAmountForType(type);
     }
 }

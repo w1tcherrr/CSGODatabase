@@ -38,13 +38,12 @@ public class CaseWriter extends AbstractDataWriter {
             List<ItemName> allValidItemNames = itemNameService.getAllNamesForSet(set);
             for (ItemName name : allValidItemNames) {
                 if (name.getName().matches(".* Case ?[23]?")) {
-                    System.out.println(name);
                     overviewLines.add(new String[]{name.getName(), "" + itemService.getTotalAmountOfContainersForSet(set), "" + itemService.getTotalAmountForSetNoContainers(set)});
                 }
             }
         });
 
-        sortByColumn(overviewLines, 1);
+        sortByNumericalColumn(overviewLines, 1);
         overviewLines.forEach(line -> overviewBuilder.addRow(null, line));
 
         for (ItemSet set : caseSets) {

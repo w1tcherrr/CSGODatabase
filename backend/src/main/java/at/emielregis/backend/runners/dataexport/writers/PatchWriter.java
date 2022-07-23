@@ -42,7 +42,7 @@ public class PatchWriter extends AbstractDataWriter {
             rows.add(new String[]{set.getName(), "" + itemService.getTotalAmountOfContainersForSet(set), "" + itemService.getTotalAmountForSetNoContainers(set)});
         }
 
-        sortByColumn(rows, 1);
+        sortByNumericalColumn(rows, 1);
         rows.forEach(line -> overviewBuilder.addRow(null, line));
 
         for (ItemSet set : patchSets) {

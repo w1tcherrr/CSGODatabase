@@ -34,4 +34,16 @@ public class UrlProvider {
     public String getSteamGroupRequest(String steamGroupName, long page) {
         return "https://steamcommunity.com/groups/" + steamGroupName + "/memberslistxml/?xml=1&p=" + page;
     }
+
+    public String getSkinPortPriceUrl() {
+        return "https://api.skinport.com/v1/items?app_id=730&currency=USD";
+    }
+
+    public String getSteamMarketPriceUrl(long start) {
+        return "https://steamcommunity.com/market/search/render/?search_descriptions=0&sort_column=default&sort_dir=desc&appid=730&norender=1&count=100&start=" + start;
+    }
+
+    public String getCsgoBackPackUrl() {
+        return "http://csgobackpack.net/api/GetItemsList/v2/?no_details=true";
+    }
 }

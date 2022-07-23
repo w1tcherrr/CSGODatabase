@@ -68,7 +68,7 @@ public class StorageUnitWriter extends AbstractDataWriter {
         // first sort alphabetically and then by the total amount - due to it being stable amount of same size will be alphabetically sorted
         lines.sort(Comparator.comparing(v -> v[0]));
         Collections.reverse(lines);
-        sortByColumn(lines, 2);
+        sortByNumericalColumn(lines, 2);
 
         lines.forEach(line -> storageUnitSheetBuilder.addRow(null, line));
     }

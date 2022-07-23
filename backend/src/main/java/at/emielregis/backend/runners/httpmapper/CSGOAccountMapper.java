@@ -6,26 +6,18 @@ import at.emielregis.backend.data.enums.HttpResponseMappingStatus;
 import at.emielregis.backend.service.CSGOAccountService;
 import at.emielregis.backend.service.CSGOInventoryService;
 import at.emielregis.backend.service.ItemService;
+import at.emielregis.backend.service.ProxyService;
 import at.emielregis.backend.service.SteamAccountService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.lang.invoke.MethodHandles;
-import java.net.InetSocketAddress;
-import java.net.Proxy;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * This class is used to map CSGOAccounts by first searching for valid accounts from
@@ -42,6 +34,7 @@ public class CSGOAccountMapper {
     private final SteamAccountService steamAccountService;
     private final SteamGroupMapper steamGroupMapper;
     private final ItemService itemService;
+    private final ProxyService proxyService;
 
     /*
     The max amount of unique CS:GO inventories to be mapped (not the number of accounts since accounts without csgo,
@@ -65,27 +58,21 @@ public class CSGOAccountMapper {
      */
     private volatile boolean stop;
 
-    /*
-    MAX_PROXIES -> maximum account of proxies to be read from the proxies.txt file, if MAX_PROXIES = 1 the application only uses one thread for all requests.
-    AMOUNT_OF_PROXIES -> The actual amount of used proxies in case there are fewer proxies than specified by MAX_PROXIES. Put MAX_PROXIES to Integer.MAX_VALUE
-    if you want all proxies of your file to be used.
-     */
-    private static final int MAX_PROXIES = 100;
-    private static final int AMOUNT_OF_PROXIES = getProxies().size();
-
     public CSGOAccountMapper(
         CSGOAccountService csgoAccountService,
         CSGOInventoryService csgoInventoryService,
         CSGOInventoryMapper csgoInventoryMapper,
         SteamAccountService steamAccountService,
         SteamGroupMapper steamGroupMapper,
-        ItemService itemService) {
+        ItemService itemService,
+        ProxyService proxyService) {
         this.csgoAccountService = csgoAccountService;
         this.csgoInventoryService = csgoInventoryService;
         this.csgoInventoryMapper = csgoInventoryMapper;
         this.steamAccountService = steamAccountService;
         this.steamGroupMapper = steamGroupMapper;
         this.itemService = itemService;
+        this.proxyService = proxyService;
     }
 
     /**
@@ -96,52 +83,22 @@ public class CSGOAccountMapper {
 
         LOGGER.info("Starting with: {} inventories", alreadyMappedAccountsWithInventories);
 
-        List<Thread> threads = new ArrayList<>();
-
-        // create a thread for each proxy to run requests from
-        for (String[] proxyParams : getProxies()) {
-            Thread t = new Thread(() -> {
-                // initialize proxy
-                Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyParams[0], Integer.parseInt(proxyParams[1])));
-                SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-                requestFactory.setProxy(proxy);
-                RestTemplate template = new RestTemplate(requestFactory);
-
-                // start mapping csgo inventories
-                mapNextPlayers(template);
+        proxyService.addThreads(proxyService.maxThreads(),
+            template -> {
+                while (!stop) {
+                    // start mapping csgo inventories
+                    mapNextPlayers(template);
+                }
 
                 // notify the user after termination of the proxy
                 LOGGER.info("FINISHED EXECUTION OF THREAD");
             });
-            threads.add(t);
-            t.start();
-        }
 
-        // wait until all threads finish
-        for (Thread t : threads) {
-            try {
-                t.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
+        proxyService.await();
 
         // delete all orphaned items once after the mapping has stopped.
         deleteOrphanedItems();
         deleteOrphanedInventories();
-    }
-
-    /**
-     * Gets an array of the proxies [ip, port]. Reads up to MAX_PROXIES proxies from the file.
-     *
-     * @return List of proxies.
-     */
-    private static List<String[]> getProxies() {
-        InputStreamReader r = new InputStreamReader(Objects.requireNonNull(CSGOAccountMapper.class.getClassLoader().getResourceAsStream("proxies.txt")));
-        BufferedReader reader = new BufferedReader(r);
-        List<String[]> lines = reader.lines().filter(line -> !line.isEmpty()).filter(line -> !line.startsWith("#")).map(String::trim).map(line -> line.split(":")).collect(Collectors.toList());
-        Collections.shuffle(lines); // shuffle so different proxies are selected each time for rate limiting purposes
-        return lines.stream().limit(MAX_PROXIES).toList();
     }
 
     /**
@@ -151,10 +108,6 @@ public class CSGOAccountMapper {
      */
     public void mapNextPlayers(RestTemplate template) {
         LOGGER.info("Mapping next players");
-
-        if (stop) {
-            return;
-        }
 
         steamGroupMapper.findAccounts();
 
@@ -167,6 +120,7 @@ public class CSGOAccountMapper {
         // this means that no accounts should be mapped anymore from the thread - this happens when the max is reached
         if (nextAccounts.size() == 0) {
             LOGGER.info("Finished mapping {} accounts.", MAX_CSGO_ACCOUNTS);
+            stop = true;
             return;
         }
 
@@ -174,13 +128,6 @@ public class CSGOAccountMapper {
         for (String id64 : nextAccounts) {
             mapUser(id64, template);
         }
-
-        if (stop) {
-            return;
-        }
-
-        // call recursively to map next players
-        mapNextPlayers(template);
     }
 
     /**
@@ -190,7 +137,7 @@ public class CSGOAccountMapper {
      */
     private synchronized List<String> getIDs() {
         long max = MAX_CSGO_ACCOUNTS - alreadyMappedAccountsWithInventories;
-        long amount = Math.max(max / AMOUNT_OF_PROXIES, 1);
+        long amount = Math.max(max / proxyService.maxThreads(), 1);
         amount = Math.min(amount, 50);
         if (alreadyMappedAccountsWithInventories + amount > MAX_CSGO_ACCOUNTS) {
             amount = MAX_CSGO_ACCOUNTS - alreadyMappedAccountsWithInventories;
@@ -298,24 +245,16 @@ public class CSGOAccountMapper {
         // use sets not lists for performance as ids may not be duplicate anyway
         LOGGER.info("Delete orphaned items");
 
-        if (itemService.count() == itemService.countNormalItems()) {
+        Set<Long> orphanedIDs = itemService.getOrphanedIDs();
+
+        if (orphanedIDs.size() == 0) {
             LOGGER.info("No orphaned items!");
             return;
         }
 
-        Set<Long> allItemIDs = itemService.getAllItemIDs();
-        Set<Long> normalItemIDs = itemService.getNormalItemIDs();
-        Set<Long> orphanedIDs = new HashSet<>();
-
-        for (Long id : allItemIDs) {
-            if (!normalItemIDs.contains(id)) {
-                orphanedIDs.add(id);
-            }
-        }
-
         LOGGER.info("Total items before delete: " + itemService.count());
         LOGGER.info("Total orphaned items: " + orphanedIDs.size());
-        itemService.deleteAllById(orphanedIDs);
+        //itemService.deleteAllById(orphanedIDs);
         LOGGER.info("Total items after delete: " + itemService.count());
     }
 

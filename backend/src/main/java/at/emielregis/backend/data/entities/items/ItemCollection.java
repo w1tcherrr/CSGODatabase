@@ -26,7 +26,7 @@ import java.util.Objects;
 public class ItemCollection {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
 
     @ManyToOne(optional = false)
@@ -65,8 +65,7 @@ public class ItemCollection {
     private boolean compareStickers(ItemCollection item) {
         if (this.stickers == null && item.getStickers() == null) {
             return true;
-        }
-        if (this.stickers != null && item.getStickers() != null) {
+        } else if (this.stickers != null && item.getStickers() != null) {
             if (this.stickers.size() != item.getStickers().size()) {
                 return false;
             }
@@ -76,7 +75,8 @@ public class ItemCollection {
                 }
             }
             return true;
+        } else {
+            return this.stickers == null ? item.stickers.size() == 0 : this.stickers.size() == 0;
         }
-        return false;
     }
 }

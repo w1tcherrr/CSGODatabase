@@ -14,8 +14,10 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -83,10 +85,17 @@ public class SheetBuilder {
             }
 
             String value = text[i];
-            if (value != null && isNumber(value)) {
+            if (value != null && isIntegerOrLong(value)) {
                 long longValue = Long.parseLong(value);
                 if (longValue != 0) {
-                    cell.setCellValue(longValue);
+                    cell.setCellValue(NumberFormat.getNumberInstance(Locale.GERMAN).format(longValue));
+                } else {
+                    cell.setCellValue("");
+                }
+            } else if (value != null && isDouble(value)) {
+                double doubleValue = Double.parseDouble(value);
+                if (doubleValue != 0) {
+                    cell.setCellValue(String.format(Locale.GERMAN, "%1$,.2f", doubleValue));
                 } else {
                     cell.setCellValue("");
                 }
@@ -97,9 +106,18 @@ public class SheetBuilder {
         rows.add(row);
     }
 
-    private static boolean isNumber(String cellValue) {
+    private static boolean isIntegerOrLong(String cellValue) {
         try {
             Long.parseLong(cellValue);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private static boolean isDouble(String cellValue) {
+        try {
+            Double.parseDouble(cellValue);
             return true;
         } catch (NumberFormatException e) {
             return false;

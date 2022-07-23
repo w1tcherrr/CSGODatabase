@@ -51,7 +51,7 @@ public class StickerWriter extends AbstractDataWriter {
                 "" + stickerService.countTotalSouvenirAppliedForSet(set)});
         });
 
-        sortByColumn(rows, 1);
+        sortByNumericalColumn(rows, 1);
         rows.forEach(line -> overviewBuilder.addRow(null, line));
         overviewBuilder.emptyLines(1);
         overviewBuilder.addRow(null, "Note: A few old capsules are not identified by the API - their amount are not listed here.");
@@ -74,7 +74,7 @@ public class StickerWriter extends AbstractDataWriter {
             finalRows.add(row);
         });
 
-        sortByColumn(rows, 1);
+        sortByNumericalColumn(rows, 1);
         rows.forEach(line -> unclassifiedBuilder.addRow(null, line));
 
         for (ItemSet set : stickerSets) {

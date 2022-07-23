@@ -44,7 +44,7 @@ public class SouvenirWriter extends AbstractDataWriter {
             overviewLines.add(currentRow);
         }
 
-        sortByColumn(overviewLines, 1);
+        sortByNumericalColumn(overviewLines, 1);
         overviewLines.forEach(line -> overviewBuilder.addRow(null, line));
 
         for (ItemSet set : collectionSets) {

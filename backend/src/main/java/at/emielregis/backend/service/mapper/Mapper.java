@@ -85,7 +85,7 @@ public record Mapper(ItemTypeRepository itemTypeRepository,
 
         if (setSet && categorySet && nameSet) {
             ItemType alreadyStoredType = itemTypeRepository.findByEquality(alreadyStoredSet, alreadyStoredCategory, alreadyStoredName,
-                itemType.getExterior(), itemType.getRarity(), itemType.getSpecialItemType());
+                itemType.getExterior(), itemType.getRarity(), itemType.getSpecialItemType(), itemType.getMarketHashName());
             if (alreadyStoredType != null) {
                 return alreadyStoredType;
             }
@@ -99,6 +99,7 @@ public record Mapper(ItemTypeRepository itemTypeRepository,
                 .exterior(itemType.getExterior())
                 .rarity(itemType.getRarity())
                 .specialItemType(itemType.getSpecialItemType())
+                .marketHashName(itemType.getMarketHashName())
                 .build()
         );
     }

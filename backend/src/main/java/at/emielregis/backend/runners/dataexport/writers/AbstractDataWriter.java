@@ -116,15 +116,23 @@ public abstract class AbstractDataWriter {
         });
 
         // sort by total amount
-        sortByColumn(lines, 1);
+        sortByNumericalColumn(lines, 1);
 
         return lines;
     }
 
-    protected static void sortByColumn(List<String[]> lines, int columnNumber) {
+    protected static void sortByNumericalColumn(List<String[]> lines, int columnNumber) {
         LOGGER.info("AbstractDataWriter#sortByColumn()");
-        lines.sort(Comparator.comparingInt(a -> Integer.parseInt(a[columnNumber])));
+        lines.sort(Comparator.comparingDouble(a -> getNumber(a[columnNumber])));
         Collections.reverse(lines);
+    }
+
+    private static double getNumber(String number) {
+        try {
+            return Double.parseDouble(number);
+        } catch (NumberFormatException e) {
+            return Integer.parseInt(number);
+        }
     }
 
     protected List<String[]> createLinesForItemSet(ItemSet set) {
@@ -179,7 +187,7 @@ public abstract class AbstractDataWriter {
             lines.add(currentLine);
         });
 
-        sortByColumn(lines, 1);
+        sortByNumericalColumn(lines, 1);
         lines.add(0, titleArray);
 
         return lines;
