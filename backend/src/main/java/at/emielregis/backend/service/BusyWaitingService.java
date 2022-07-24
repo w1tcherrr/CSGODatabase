@@ -16,11 +16,11 @@ public class BusyWaitingService {
     /**
      * Busy waits for the specified amount of time.
      *
-     * @param minutes The amount of minutes to wait.
+     * @param seconds The amount of seconds to wait.
      */
-    public void wait(int minutes) {
-        LOGGER.info("Locking for " + minutes + " minutes.");
-        locked_until = LocalDateTime.now().plusMinutes(minutes);
+    public void wait(int seconds) {
+        LOGGER.info("Locking for " + seconds + " seconds.");
+        locked_until = LocalDateTime.now().plusMinutes(seconds);
         waitForLock();
     }
 

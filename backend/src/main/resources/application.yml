@@ -2,7 +2,28 @@ logging:
   file.name: ./log/backend.log
   level:
     root: INFO
-    org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping: TRACE
+
+user-properties:
+  # the max amount of csgo accounts the database can store
+  max-csgo-accounts: 1000000
+  # the maximum amount of accounts to be mapped in the current session - the mapping terminates after the specified amount
+  # accounts WITHOUT inventories are also counted! This is mostly for purposes of testing the performance! Put this to the same
+  # amount as max-csgo-accounts if you don't want to measure performance.
+  max-accounts-for-session: 1000000
+  # the minimum items in an inventory for the accounts inventory to be stored (to filter out smurf accounts)
+  min-items-per-account: 10
+  # maximum amount of ids to be selected per batch
+  max-ids-per-batch: 50
+  # the minimum amount of unmapped steam ids to be kept as a buffer
+  account-buffer-size: 10000
+  # the amount of threads the application uses to map accounts
+  amount-of-threads: 100
+  # the amount of proxies the application uses - the proxies are spread evenly over the threads if the thread-number is
+  # smaller than the proxy number. E.G.: 100, 100 -> One thread/One proxy; 20,100 -> One thread, Five proxies (Round Robin)
+  # General rule: amount-of-proxies % amount-of-threads should be 0 (even distribution)!
+  amount-of-proxies: 100
+  # the maximum amount of proxies to be read from the proxies file
+  max-proxies: 100
 
 spring:
   h2:
@@ -20,8 +41,7 @@ spring:
     hibernate:
       ddl-auto: update
     # Allows to fetch lazy properties outside of the original transaction. Although this sounds helpful, the property
-    # is disabled since it breaks the principle of least astonishment and leads to bad performance. The learn more,
-    # follow this link: https://bit.ly/2LaX9ku
+    # is disabled since it breaks the principle of least astonishment and leads to bad performance.
     open-in-view: false
 
 security:

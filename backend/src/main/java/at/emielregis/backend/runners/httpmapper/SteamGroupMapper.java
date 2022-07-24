@@ -9,6 +9,7 @@ import at.emielregis.backend.service.SteamAccountService;
 import at.emielregis.backend.service.UrlProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
@@ -33,6 +34,8 @@ public class SteamGroupMapper {
     private final BusyWaitingService busyWaitingService;
     private final PersistentDataService persistentDataService;
 
+    @Value("${user-properties.account-buffer-size}")
+    private long ACCOUNT_BUFFER_SIZE;
 
     private volatile boolean initialized = false;
     private long currentAccounts;
@@ -73,8 +76,8 @@ public class SteamGroupMapper {
 
         LOGGER.info("Already have {} accounts", currentAccounts);
 
-        // 10.000 buffer accounts - whenever there are less than 10.000 accounts left new accounts are searched for.
-        while (currentAccounts < (csgoAccountService.count() + 10_000)) {
+        // whenever there are less than ACCOUNT_BUFFER_SIZE accounts left new accounts are searched for.
+        while (currentAccounts < (csgoAccountService.count() + ACCOUNT_BUFFER_SIZE)) {
             String currentGroup;
             long currentPage;
 

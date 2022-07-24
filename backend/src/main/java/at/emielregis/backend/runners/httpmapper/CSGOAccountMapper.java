@@ -10,6 +10,7 @@ import at.emielregis.backend.service.ProxyService;
 import at.emielregis.backend.service.SteamAccountService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -45,8 +46,28 @@ public class CSGOAccountMapper {
     MIN_ITEMS_FOR_ACCOUNT specifies how many items an inventory must have to be stored. This is to filter out most
     very obvious smurf accounts, which only have extremely few items.
      */
-    private static final long MAX_CSGO_ACCOUNTS = 1_000_000;
-    private static final long MIN_ITEMS_FOR_ACCOUNT = 10;
+    @Value("${user-properties.max-csgo-accounts}")
+    private long MAX_CSGO_ACCOUNTS;
+
+    @Value("${user-properties.max-accounts-for-session}")
+    private long MAX_ACCOUNTS_FOR_SESSION;
+
+    @Value("${user-properties.min-items-per-account}")
+    private long MIN_ITEMS_FOR_ACCOUNT;
+
+    @Value("${user-properties.max-ids-per-batch}")
+    private int MAX_IDS_PER_BATCH;
+
+    @Value("${user-properties.amount-of-threads}")
+    private int AMOUNT_OF_THREADS;
+
+    @Value("${user-properties.amount-of-proxies}")
+    private int AMOUNT_OF_PROXIES;
+
+    /*
+    amount of accounts already mapped
+     */
+    private long alreadyMappedAccounts;
 
     /*
     amount of accounts already mapped that also have an inventory
@@ -83,11 +104,11 @@ public class CSGOAccountMapper {
 
         LOGGER.info("Starting with: {} inventories", alreadyMappedAccountsWithInventories);
 
-        proxyService.addThreads(proxyService.maxThreads(),
-            template -> {
+        proxyService.addThreads(AMOUNT_OF_THREADS, AMOUNT_OF_PROXIES,
+            templates -> {
                 while (!stop) {
                     // start mapping csgo inventories
-                    mapNextPlayers(template);
+                    mapNextPlayers(templates);
                 }
 
                 // notify the user after termination of the proxy
@@ -97,17 +118,20 @@ public class CSGOAccountMapper {
         proxyService.await();
 
         // delete all orphaned items once after the mapping has stopped.
-        deleteOrphanedItems();
-        deleteOrphanedInventories();
+        if (MAX_ACCOUNTS_FOR_SESSION >= MAX_CSGO_ACCOUNTS) {
+            deleteOrphanedItems();
+            deleteOrphanedInventories();
+        }
     }
 
     /**
      * Maps the next valid players from the current thread.
      *
-     * @param template The RestTemplate from which to execute the calls.
+     * @param templates The RestTemplates from which to execute the calls.
      */
-    public void mapNextPlayers(RestTemplate template) {
+    public void mapNextPlayers(RestTemplate[] templates) {
         LOGGER.info("Mapping next players");
+        int proxyIndex = 0;
 
         steamGroupMapper.findAccounts();
 
@@ -126,7 +150,12 @@ public class CSGOAccountMapper {
 
         // map each user individually
         for (String id64 : nextAccounts) {
-            mapUser(id64, template);
+            if (stop) {
+                break;
+            }
+
+            mapUser(id64, templates[proxyIndex]);
+            proxyIndex = (proxyIndex + 1) % templates.length;
         }
     }
 
@@ -138,7 +167,7 @@ public class CSGOAccountMapper {
     private synchronized List<String> getIDs() {
         long max = MAX_CSGO_ACCOUNTS - alreadyMappedAccountsWithInventories;
         long amount = Math.max(max / proxyService.maxThreads(), 1);
-        amount = Math.min(amount, 50);
+        amount = Math.min(amount, MAX_IDS_PER_BATCH);
         if (alreadyMappedAccountsWithInventories + amount > MAX_CSGO_ACCOUNTS) {
             amount = MAX_CSGO_ACCOUNTS - alreadyMappedAccountsWithInventories;
         }
@@ -160,6 +189,11 @@ public class CSGOAccountMapper {
         // if the amount of mapped inventories is greater or equal to the max amount the mapping is stopped in all threads
         synchronized (this) {
             if (alreadyMappedAccountsWithInventories >= MAX_CSGO_ACCOUNTS) {
+                stop = true;
+                return;
+            }
+            if (alreadyMappedAccounts >= MAX_ACCOUNTS_FOR_SESSION) {
+                LOGGER.info("MAX ACCOUNTS FOR SESSION REACHED - TERMINATING");
                 stop = true;
                 return;
             }
@@ -219,6 +253,7 @@ public class CSGOAccountMapper {
                 }
             }
 
+            ++alreadyMappedAccounts;
             csgoAccountService.save(acc);
         }
     }

@@ -21,7 +21,6 @@ import org.springframework.web.client.RestTemplate;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -100,8 +99,9 @@ public class ItemPriceMapper {
         List<Integer> successful = Collections.synchronizedList(new ArrayList<>());
         AtomicInteger currentThreadId = new AtomicInteger(0);
 
-        proxyService.addThreads(THREAD_AMOUNT, template -> {
+        proxyService.addThreads(proxyService.maxThreads(), proxyService.maxThreads(), templates -> {
             List<Integer> idsForThread = distributedIds.get(currentThreadId.getAndIncrement());
+            int proxyIndex = 0;
 
             while (true) {
                 SteamMarketPriceResponse steamMarketPriceResponse;
@@ -115,7 +115,8 @@ public class ItemPriceMapper {
                         break;
                     }
                     LOGGER.info("MAPPING FOR ID: {}", currentPage);
-                    steamMarketPriceResponse = template.getForObject(urlProvider.getSteamMarketPriceUrl(currentPage), SteamMarketPriceResponse.class);
+                    steamMarketPriceResponse = templates[proxyIndex].getForObject(urlProvider.getSteamMarketPriceUrl(currentPage), SteamMarketPriceResponse.class);
+                    proxyIndex = (proxyIndex + 1) % templates.length;
                 } catch (RestClientException e) {
                     LOGGER.error(e.getMessage());
                     idsForThread.add(currentPage);

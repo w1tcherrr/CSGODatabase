@@ -1,10 +1,12 @@
 package at.emielregis.backend.service;
 
 import at.emielregis.backend.runners.httpmapper.CSGOAccountMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import javax.annotation.PostConstruct;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
@@ -23,28 +25,51 @@ public class ProxyService {
     AMOUNT_OF_PROXIES -> The actual amount of used proxies in case there are fewer proxies than specified by MAX_PROXIES. Put MAX_PROXIES to Integer.MAX_VALUE
     if you want all proxies of your file to be used.
     */
-    private final int AMOUNT_OF_PROXIES = getProxies().size();
-    private final List<String[]> proxyParams = getProxies();
+
+    @Value("${user-properties.max-proxies}")
+    private int MAX_PROXIES;
+    private List<String[]> proxyParams;
+
     private List<Thread> currentThreads = new ArrayList<>();
     private int last_index;
 
-    public void addThreads(int amount, Consumer<RestTemplate> consumer) {
-        for (int i = 0; i < amount; i++) {
-            addThread(consumer);
+    // initialize in post construct, since the properties are only inserted post creation
+    @PostConstruct
+    private void init() {
+        this.proxyParams = getProxies(MAX_PROXIES);
+    }
+
+    public void addThreads(int amountOfThreads, int amountOfProxies, Consumer<RestTemplate[]> consumer) {
+        if (amountOfProxies < amountOfThreads) {
+            throw new IllegalArgumentException("Proxy amount must exceed/equal thread amount");
+        }
+        // spread the proxies evenly over all threads
+        int[] amounts = new int[amountOfThreads];
+        for (int i = 0; i < amountOfProxies; i++) {
+            amounts[i % amounts.length]++;
+        }
+        for (int i = 0; i < amountOfThreads; i++) {
+            addThread(consumer, amounts[i]);
         }
     }
 
-    public void addThread(Consumer<RestTemplate> consumer) {
-        last_index = (last_index + 1) % maxThreads();
-        String[] currentParams = proxyParams.get(last_index);
+    public void addThread(Consumer<RestTemplate[]> consumer, int amount) {
+        List<RestTemplate> templates = new ArrayList<>();
 
-        Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(currentParams[0], Integer.parseInt(currentParams[1])));
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setProxy(proxy);
-        RestTemplate template = new RestTemplate(requestFactory);
+        for (int i = 0; i < amount; i++) {
+            last_index = (last_index + 1) % maxThreads();
+            String[] currentParams = proxyParams.get(last_index);
+
+            Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(currentParams[0], Integer.parseInt(currentParams[1])));
+            SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+            requestFactory.setProxy(proxy);
+            RestTemplate template = new RestTemplate(requestFactory);
+
+            templates.add(template);
+        }
 
         Thread thread = new Thread(
-            () -> consumer.accept(template)
+            () -> consumer.accept(templates.toArray(new RestTemplate[0]))
         );
 
         currentThreads.add(thread);
@@ -65,19 +90,24 @@ public class ProxyService {
     }
 
     public int maxThreads() {
-        return AMOUNT_OF_PROXIES;
+        return MAX_PROXIES;
     }
 
     /**
      * Gets an array of the proxies [ip, port]. Reads up to MAX_PROXIES proxies from the file.
      *
+     * @param MAX_PROXIES Max amount to be read from the file
      * @return List of proxies.
      */
-    private static List<String[]> getProxies() {
+    private List<String[]> getProxies(int MAX_PROXIES) {
         InputStreamReader r = new InputStreamReader(Objects.requireNonNull(CSGOAccountMapper.class.getClassLoader().getResourceAsStream("proxies.txt")));
         BufferedReader reader = new BufferedReader(r);
         List<String[]> lines = reader.lines().filter(line -> !line.isEmpty()).filter(line -> !line.startsWith("#")).map(String::trim).map(line -> line.split(":")).collect(Collectors.toList());
         Collections.shuffle(lines); // shuffle so different proxies are selected each time for rate limiting purposes
-        return lines.stream().toList();
+        List<String[]> proxies = lines.stream().limit(MAX_PROXIES).toList();
+        if (proxies.size() != MAX_PROXIES) {
+            throw new IllegalStateException("Proxy amount specified in the properties is higher than the amount of proxies in the file.");
+        }
+        return proxies;
     }
 }
