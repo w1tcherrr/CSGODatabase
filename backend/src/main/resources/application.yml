@@ -1,7 +1,8 @@
 logging:
   file.name: ./log/backend.log
   level:
-    root: INFO
+    # put this on 'INFO' to be on, on 'OFF' to be off
+    root: OFF
 
 user-properties:
   # the max amount of csgo accounts the database can store
@@ -17,7 +18,7 @@ user-properties:
   # the minimum amount of unmapped steam ids to be kept as a buffer
   account-buffer-size: 10000
   # the amount of threads the application uses to map accounts
-  amount-of-threads: 20
+  amount-of-threads: 50
   # the amount of proxies the application uses - the proxies are spread evenly over the threads if the thread-number is
   # smaller than the proxy number. E.G.: 100, 100 -> One thread/One proxy; 20,100 -> One thread, Five proxies (Round Robin)
   # General rule: amount-of-proxies % amount-of-threads should be 0 (even distribution)!

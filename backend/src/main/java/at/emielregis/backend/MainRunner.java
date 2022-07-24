@@ -3,6 +3,7 @@ package at.emielregis.backend;
 import at.emielregis.backend.runners.dataexport.DataWriter;
 import at.emielregis.backend.runners.httpmapper.CSGOAccountMapper;
 import at.emielregis.backend.runners.httpmapper.ItemPriceMapper;
+import at.emielregis.backend.service.TimingService;
 import org.springframework.beans.BeansException;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationContext;
@@ -16,12 +17,15 @@ public class MainRunner implements ApplicationContextAware {
     private final DataWriter dataWriter;
     private final CSGOAccountMapper csgoAccountMapper;
     private final ItemPriceMapper itemPriceMapper;
-    private ApplicationContext springContainer;
+    private final TimingService timingService;
 
-    public MainRunner(DataWriter dataWriter, CSGOAccountMapper csgoAccountMapper, ItemPriceMapper itemPriceMapper) {
+    private ConfigurableApplicationContext springContainer;
+
+    public MainRunner(DataWriter dataWriter, CSGOAccountMapper csgoAccountMapper, ItemPriceMapper itemPriceMapper, TimingService timingService) {
         this.dataWriter = dataWriter;
         this.csgoAccountMapper = csgoAccountMapper;
         this.itemPriceMapper = itemPriceMapper;
+        this.timingService = timingService;
     }
 
     /**
@@ -31,18 +35,18 @@ public class MainRunner implements ApplicationContextAware {
      */
     @EventListener(ApplicationReadyEvent.class)
     public void run() {
-        csgoAccountMapper.start();
+        timingService.time(csgoAccountMapper::start, "Total mapping time in seconds: {}");
         itemPriceMapper.start();
         dataWriter.write();
         exit();
     }
 
     public void exit() {
-        ((ConfigurableApplicationContext) springContainer).close();
+        springContainer.close();
     }
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        springContainer = applicationContext;
+        springContainer = (ConfigurableApplicationContext) applicationContext;
     }
 }
