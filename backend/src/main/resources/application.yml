@@ -2,7 +2,7 @@ logging:
   file.name: ./log/backend.log
   level:
     # put this on 'INFO' to be on, on 'OFF' to be off
-    root: OFF
+    root: INFO
 
 user-properties:
   # the max amount of csgo accounts the database can store

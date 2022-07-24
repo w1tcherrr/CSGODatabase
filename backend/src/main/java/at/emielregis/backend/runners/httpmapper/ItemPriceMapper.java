@@ -7,7 +7,6 @@ import at.emielregis.backend.data.responses.prices.CsgoBackpackPriceResponse;
 import at.emielregis.backend.data.responses.prices.IPriceResponse;
 import at.emielregis.backend.data.responses.prices.SkinportPriceResponse;
 import at.emielregis.backend.data.responses.prices.SteamMarketPriceResponse;
-import at.emielregis.backend.service.BusyWaitingService;
 import at.emielregis.backend.service.ItemService;
 import at.emielregis.backend.service.ItemTypeService;
 import at.emielregis.backend.service.ProxyService;
@@ -198,5 +197,16 @@ public class ItemPriceMapper {
         }
 
         return averagePrice / prices.size();
+    }
+
+    public Double getSingleItemPriceForSticker(ItemName itemName) {
+        List<ItemType> types = itemTypeService.getTypesForItemNames(List.of(itemName));
+        if (types.size() < 1 || types.size() > 2) {
+            throw new IllegalStateException("Found " + types.size() + " ItemNames for Sticker " + itemName.getName() + " instead of 1 (or 2): " + types + "!");
+        }
+        ItemType type = types.get(0);
+        List<IPriceable> prices = priceDtos.get(type.getMarketHashName());
+
+        return averagePrice(prices);
     }
 }

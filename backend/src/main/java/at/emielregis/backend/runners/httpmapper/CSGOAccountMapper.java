@@ -104,6 +104,10 @@ public class CSGOAccountMapper {
 
         LOGGER.info("Starting with: {} inventories", alreadyMappedAccountsWithInventories);
 
+        if (MAX_ACCOUNTS_FOR_SESSION <= 0) {
+            return;
+        }
+
         proxyService.addThreads(AMOUNT_OF_THREADS, AMOUNT_OF_PROXIES,
             templates -> {
                 while (!stop) {
