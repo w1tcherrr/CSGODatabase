@@ -17,7 +17,7 @@ user-properties:
   # the minimum amount of unmapped steam ids to be kept as a buffer
   account-buffer-size: 10000
   # the amount of threads the application uses to map accounts
-  amount-of-threads: 100
+  amount-of-threads: 20
   # the amount of proxies the application uses - the proxies are spread evenly over the threads if the thread-number is
   # smaller than the proxy number. E.G.: 100, 100 -> One thread/One proxy; 20,100 -> One thread, Five proxies (Round Robin)
   # General rule: amount-of-proxies % amount-of-threads should be 0 (even distribution)!

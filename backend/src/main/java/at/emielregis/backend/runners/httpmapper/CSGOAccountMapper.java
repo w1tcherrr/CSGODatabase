@@ -133,7 +133,7 @@ public class CSGOAccountMapper {
         LOGGER.info("Mapping next players");
         int proxyIndex = 0;
 
-        steamGroupMapper.findAccounts();
+        steamGroupMapper.findAccounts(templates);
 
         // getting next steam account ids to map
         List<String> nextAccounts = getIDs();

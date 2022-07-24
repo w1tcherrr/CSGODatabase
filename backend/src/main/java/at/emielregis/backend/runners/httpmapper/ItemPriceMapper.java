@@ -35,17 +35,15 @@ public class ItemPriceMapper {
 
     private final RestTemplate restTemplate;
     private final UrlProvider urlProvider;
-    private final BusyWaitingService busyWaitingService;
     private final ProxyService proxyService;
     private final ItemTypeService itemTypeService;
     private final ItemService itemService;
 
     private final Map<String, List<IPriceable>> priceDtos = new HashMap<>();
 
-    public ItemPriceMapper(RestTemplate restTemplate, UrlProvider urlProvider, BusyWaitingService busyWaitingService, ProxyService proxyService, ItemTypeService itemTypeService, ItemService itemService) {
+    public ItemPriceMapper(RestTemplate restTemplate, UrlProvider urlProvider, ProxyService proxyService, ItemTypeService itemTypeService, ItemService itemService) {
         this.restTemplate = restTemplate;
         this.urlProvider = urlProvider;
-        this.busyWaitingService = busyWaitingService;
         this.proxyService = proxyService;
         this.itemTypeService = itemTypeService;
         this.itemService = itemService;
@@ -120,7 +118,6 @@ public class ItemPriceMapper {
                 } catch (RestClientException e) {
                     LOGGER.error(e.getMessage());
                     idsForThread.add(currentPage);
-                    busyWaitingService.wait(5);
                     continue;
                 }
 
@@ -130,7 +127,6 @@ public class ItemPriceMapper {
                         if (steamMarketPriceResponse.shouldHaveItems()) {
                             LOGGER.error("RESPONSE FOR ID: {} HAS NO ITEMS BUT SHOULD HAVE ITEMS", currentPage);
                             idsForThread.add(currentPage);
-                            busyWaitingService.wait(5);
                             continue;
                         } else {
                             LOGGER.info("RESPONSE FOR ID: {} HAS NO ITEMS - FINISHED MAPPING", currentPage);
@@ -142,7 +138,6 @@ public class ItemPriceMapper {
                 } else {
                     LOGGER.error("UNSUCCESSFUL RESPONSE!");
                     idsForThread.add(currentPage);
-                    busyWaitingService.wait(5);
                 }
             }
         });

@@ -5,7 +5,6 @@ import at.emielregis.backend.data.entities.CSGOInventory;
 import at.emielregis.backend.data.entities.items.ItemCollection;
 import at.emielregis.backend.data.enums.HttpResponseMappingStatus;
 import at.emielregis.backend.data.responses.HttpInventoryResponse;
-import at.emielregis.backend.service.BusyWaitingService;
 import at.emielregis.backend.service.UrlProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,12 +24,9 @@ public class CSGOInventoryMapper {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private final UrlProvider urlProvider;
-    private final BusyWaitingService busyWaitingService;
 
-    public CSGOInventoryMapper(UrlProvider urlProvider,
-                               BusyWaitingService busyWaitingService) {
+    public CSGOInventoryMapper(UrlProvider urlProvider) {
         this.urlProvider = urlProvider;
-        this.busyWaitingService = busyWaitingService;
     }
 
     /**
@@ -56,11 +52,9 @@ public class CSGOInventoryMapper {
                     return HttpResponseMappingStatus.FORBIDDEN;
                 } else if (e.getRawStatusCode() == 429) {
                     LOGGER.error("429 - Too many requests");
-                    busyWaitingService.wait(1);
                 }
             } else { // this generally only happens if the internet is down or the proxy rejects the request
                 LOGGER.error(ex.getMessage());
-                busyWaitingService.wait(5);
                 return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
             }
             return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
@@ -81,11 +75,9 @@ public class CSGOInventoryMapper {
                 if (ex instanceof RestClientResponseException e) {
                     if (e.getRawStatusCode() == 429) {
                         LOGGER.error("429 - Too many requests");
-                        busyWaitingService.wait(1);
                     }
                 } else { // this generally only happens if the internet is down or the proxy rejects the request
                     LOGGER.error(ex.getMessage());
-                    busyWaitingService.wait(5);
                     return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
                 }
                 return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
@@ -106,11 +98,9 @@ public class CSGOInventoryMapper {
                     if (ex instanceof RestClientResponseException e) {
                         if (e.getRawStatusCode() == 429) {
                             LOGGER.error("429 - Too many requests");
-                            busyWaitingService.wait(1);
                         }
                     } else { // this generally only happens if the internet is down or the proxy rejects the request
                         LOGGER.error(ex.getMessage());
-                        busyWaitingService.wait(5);
                         return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
                     }
                     return HttpResponseMappingStatus.TOO_MANY_REQUESTS;

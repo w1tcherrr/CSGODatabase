@@ -30,7 +30,6 @@ public class SteamGroupMapper {
     private final SteamAccountService steamAccountService;
     private final CSGOAccountService csgoAccountService;
     private final UrlProvider urlProvider;
-    private final RestTemplate restTemplate;
     private final BusyWaitingService busyWaitingService;
     private final PersistentDataService persistentDataService;
 
@@ -44,13 +43,11 @@ public class SteamGroupMapper {
 
     public SteamGroupMapper(SteamAccountService steamAccountService,
                             CSGOAccountService csgoAccountService, UrlProvider urlProvider,
-                            RestTemplate restTemplate,
                             BusyWaitingService busyWaitingService,
                             PersistentDataService persistentDataService) {
         this.steamAccountService = steamAccountService;
         this.csgoAccountService = csgoAccountService;
         this.urlProvider = urlProvider;
-        this.restTemplate = restTemplate;
         this.busyWaitingService = busyWaitingService;
         this.persistentDataService = persistentDataService;
     }
@@ -58,7 +55,7 @@ public class SteamGroupMapper {
     /**
      * Finds new accounts whenever the CSGOAccountMapper does not have enough accounts left to process.
      */
-    public void findAccounts() {
+    public void findAccounts(RestTemplate[] restTemplates) {
         // only initialize once
         synchronized (this) {
             if (!initialized) {
@@ -75,6 +72,8 @@ public class SteamGroupMapper {
         }
 
         LOGGER.info("Already have {} accounts", currentAccounts);
+
+        int proxyIndex = 0;
 
         // whenever there are less than ACCOUNT_BUFFER_SIZE accounts left new accounts are searched for.
         while (currentAccounts < (csgoAccountService.count() + ACCOUNT_BUFFER_SIZE)) {
@@ -95,7 +94,8 @@ public class SteamGroupMapper {
             // get the response as a string
             String response;
             try {
-                response = restTemplate.getForObject(currentUri, String.class);
+                response = restTemplates[proxyIndex].getForObject(currentUri, String.class);
+                proxyIndex = (proxyIndex + 1) % restTemplates.length;
             } catch (Exception ex) {
                 synchronized (this) { // if the call fails we free the page again as it wasn't properly mapped
                     persistentDataService.freePage(currentGroup, currentPage);
@@ -103,11 +103,11 @@ public class SteamGroupMapper {
                 if (ex instanceof RestClientResponseException e) {
                     if (e.getRawStatusCode() == 429) {
                         LOGGER.error("429 - Too many requests");
-                        busyWaitingService.wait(10);
+                        busyWaitingService.wait(60);
                     }
                 } else {
                     LOGGER.error(ex.getMessage());
-                    busyWaitingService.wait(5);
+                    busyWaitingService.wait(300);
                 }
                 continue;
             }
