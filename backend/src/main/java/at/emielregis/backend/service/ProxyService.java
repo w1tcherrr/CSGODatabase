@@ -39,7 +39,7 @@ public class ProxyService {
         this.proxyParams = getProxies(MAX_PROXIES);
     }
 
-    public void addThreads(int amountOfThreads, int amountOfProxies, Consumer<RestTemplate[]> consumer) {
+    public void addRestTemplateConsumerThreads(int amountOfThreads, int amountOfProxies, Consumer<RestTemplate[]> consumer) {
         if (amountOfProxies < amountOfThreads) {
             throw new IllegalArgumentException("Proxy amount must exceed/equal thread amount");
         }
@@ -49,11 +49,17 @@ public class ProxyService {
             amounts[i % amounts.length]++;
         }
         for (int i = 0; i < amountOfThreads; i++) {
-            addThread(consumer, amounts[i]);
+            addRestTemplateConsumerThread(consumer, amounts[i]);
         }
     }
 
-    public void addThread(Consumer<RestTemplate[]> consumer, int amount) {
+    public void addEmptyThread(Runnable r) {
+        Thread t = new Thread(r);
+        currentThreads.add(t);
+        t.start();
+    }
+
+    public void addRestTemplateConsumerThread(Consumer<RestTemplate[]> consumer, int amount) {
         List<RestTemplate> templates = new ArrayList<>();
 
         for (int i = 0; i < amount; i++) {

@@ -96,7 +96,7 @@ public class ItemPriceMapper {
         List<Integer> successful = Collections.synchronizedList(new ArrayList<>());
         AtomicInteger currentThreadId = new AtomicInteger(0);
 
-        proxyService.addThreads(proxyService.maxThreads(), proxyService.maxThreads(), templates -> {
+        proxyService.addRestTemplateConsumerThreads(proxyService.maxThreads(), proxyService.maxThreads(), templates -> {
             List<Integer> idsForThread = distributedIds.get(currentThreadId.getAndIncrement());
             int proxyIndex = 0;
 

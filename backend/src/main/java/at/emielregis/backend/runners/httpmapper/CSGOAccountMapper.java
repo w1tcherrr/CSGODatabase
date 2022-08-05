@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -36,6 +38,8 @@ public class CSGOAccountMapper {
     private final SteamGroupMapper steamGroupMapper;
     private final ItemService itemService;
     private final ProxyService proxyService;
+
+    private final List<CSGOAccount> accountsToPersist = Collections.synchronizedList(new ArrayList<>());
 
     /*
     The max amount of unique CS:GO inventories to be mapped (not the number of accounts since accounts without csgo,
@@ -108,7 +112,50 @@ public class CSGOAccountMapper {
             return;
         }
 
-        proxyService.addThreads(AMOUNT_OF_THREADS, AMOUNT_OF_PROXIES,
+        proxyService.addEmptyThread(() -> {
+            while (!stop || accountsToPersist.size() > 0) {
+
+                if (accountsToPersist.size() == 0) {
+                    try {
+                        Thread.sleep(5000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    continue;
+                }
+
+                LOGGER.info("Current accounts in queue: {}", accountsToPersist.size());
+                CSGOAccount acc = accountsToPersist.get(0);
+
+                if (alreadyMapped(acc.getId64())) {
+                    accountsToPersist.remove(0);
+                    continue;
+                }
+
+                if (acc.getCsgoInventory() != null) {
+                    if (++alreadyMappedAccountsWithInventories > MAX_CSGO_ACCOUNTS) {
+                        --alreadyMappedAccountsWithInventories;
+                        return;
+                    }
+                    if (acc.getCsgoInventory().getTotalItemAmount() >= MIN_ITEMS_FOR_ACCOUNT) {
+                        CSGOInventory inv = acc.getCsgoInventory();
+                        inv.setItemCollections(itemService.convert(inv.getItemCollections()));
+                        itemService.saveAll(inv.getItemCollections());
+                        csgoInventoryService.save(acc.getCsgoInventory());
+                    } else {
+                        LOGGER.info("Inventory does not have enough items and will not be stored.");
+                        acc.setCsgoInventory(null);
+                        --alreadyMappedAccountsWithInventories;
+                    }
+                }
+
+                ++alreadyMappedAccounts;
+                csgoAccountService.save(acc);
+                accountsToPersist.remove(0);
+            }
+        });
+
+        proxyService.addRestTemplateConsumerThreads(AMOUNT_OF_THREADS, AMOUNT_OF_PROXIES,
             templates -> {
                 while (!stop) {
                     // start mapping csgo inventories
@@ -168,7 +215,7 @@ public class CSGOAccountMapper {
      *
      * @return The list of ids.
      */
-    private synchronized List<String> getIDs() {
+    private List<String> getIDs() {
         long max = MAX_CSGO_ACCOUNTS - alreadyMappedAccountsWithInventories;
         long amount = Math.max(max / proxyService.maxThreads(), 1);
         amount = Math.min(amount, MAX_IDS_PER_BATCH);
@@ -191,16 +238,14 @@ public class CSGOAccountMapper {
     protected void mapUser(String id64, RestTemplate template) {
 
         // if the amount of mapped inventories is greater or equal to the max amount the mapping is stopped in all threads
-        synchronized (this) {
-            if (alreadyMappedAccountsWithInventories >= MAX_CSGO_ACCOUNTS) {
-                stop = true;
-                return;
-            }
-            if (alreadyMappedAccounts >= MAX_ACCOUNTS_FOR_SESSION) {
-                LOGGER.info("MAX ACCOUNTS FOR SESSION REACHED - TERMINATING");
-                stop = true;
-                return;
-            }
+        if (alreadyMappedAccountsWithInventories >= MAX_CSGO_ACCOUNTS) {
+            stop = true;
+            return;
+        }
+        if (alreadyMappedAccounts >= MAX_ACCOUNTS_FOR_SESSION) {
+            LOGGER.info("MAX ACCOUNTS FOR SESSION REACHED - TERMINATING");
+            stop = true;
+            return;
         }
 
         if (stop) {
@@ -224,42 +269,21 @@ public class CSGOAccountMapper {
                 .id64(id64);
 
         // Get the inventory for the user. If any of the needed calls fail the fetcher returns HttpResponseMappingStatus.TOO_MANY_REQUESTS. In this case we don't store the account.
-        if (csgoInventoryMapper.getInventory(accountBuilder, id64, template) == HttpResponseMappingStatus.TOO_MANY_REQUESTS) {
+        if (csgoInventoryMapper.getInventory(accountBuilder, id64, template) != HttpResponseMappingStatus.SUCCESS) {
             return;
         }
 
         // We increase the amount of alreadyMappedAccountsWithInventories if it has an inventory. If this amount is greater than the allowed amount we don't store it and return instead.
         // The program will automatically terminate afterwards since the next id selection will be empty by default. Otherwise we save the inventory and the account.
-        synchronized (this) {
 
-            // check this right before saving - we don't want duplicate accounts to be saved.
-            // they should not be saved either way, but it is better to check again
-            if (alreadyMapped(id64)) {
-                LOGGER.info("Request to map user with id: {} rejected, user already mapped", id64);
-                return;
-            }
-
-            CSGOAccount acc = accountBuilder.build();
-            if (acc.getCsgoInventory() != null) {
-                if (++alreadyMappedAccountsWithInventories > MAX_CSGO_ACCOUNTS) {
-                    --alreadyMappedAccountsWithInventories;
-                    return;
-                }
-                if (acc.getCsgoInventory().getTotalItemAmount() >= MIN_ITEMS_FOR_ACCOUNT) {
-                    CSGOInventory inv = acc.getCsgoInventory();
-                    inv.setItemCollections(itemService.convert(inv.getItemCollections()));
-                    itemService.saveAll(inv.getItemCollections());
-                    csgoInventoryService.save(acc.getCsgoInventory());
-                } else {
-                    LOGGER.info("Inventory does not have enough items and will not be stored.");
-                    acc.setCsgoInventory(null);
-                    --alreadyMappedAccountsWithInventories;
-                }
-            }
-
-            ++alreadyMappedAccounts;
-            csgoAccountService.save(acc);
+        // check this right before saving - we don't want duplicate accounts to be saved.
+        // they should not be saved either way, but it is better to check again
+        if (alreadyMapped(id64)) {
+            LOGGER.info("Request to map user with id: {} rejected, user already mapped", id64);
+            return;
         }
+
+        accountsToPersist.add(accountBuilder.build());
     }
 
     /**

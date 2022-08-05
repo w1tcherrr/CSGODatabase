@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface StickerRepository extends JpaRepository<Sticker, Long> {
     @Query(
-        "select sum(i.stickers.size) from ItemCollection i"
+        "select sum(size(i.stickers)) from ItemCollection i"
     )
     long countDistinctApplied();
 

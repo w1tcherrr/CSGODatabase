@@ -6,25 +6,25 @@ logging:
 
 user-properties:
   # the max amount of csgo accounts the database can store
-  max-csgo-accounts: 1000000
+  max-csgo-accounts: 2000000
   # the maximum amount of accounts to be mapped in the current session - the mapping terminates after the specified amount
   # accounts WITHOUT inventories are also counted! This is mostly for purposes of testing the performance! Put this to the same
   # amount as max-csgo-accounts if you don't want to measure performance.
-  max-accounts-for-session: 1000000
+  max-accounts-for-session: 2000000
   # the minimum items in an inventory for the accounts inventory to be stored (to filter out smurf accounts)
   min-items-per-account: 10
   # maximum amount of ids to be selected per batch
   max-ids-per-batch: 50
-  # the minimum amount of unmapped steam ids to be kept as a buffer
-  account-buffer-size: 10000
+  # the minimum amount of unmapped steam ids to be kept as a buffer (should be bigger than max-ids-per-batch * amount-of-threads)
+  account-buffer-size: 100000
   # the amount of threads the application uses to map accounts
   amount-of-threads: 50
   # the amount of proxies the application uses - the proxies are spread evenly over the threads if the thread-number is
   # smaller than the proxy number. E.G.: 100, 100 -> One thread/One proxy; 20,100 -> One thread, Five proxies (Round Robin)
   # General rule: amount-of-proxies % amount-of-threads should be 0 (even distribution)!
-  amount-of-proxies: 100
+  amount-of-proxies: 250
   # the maximum amount of proxies to be read from the proxies file
-  max-proxies: 100
+  max-proxies: 250
 
 spring:
   h2:

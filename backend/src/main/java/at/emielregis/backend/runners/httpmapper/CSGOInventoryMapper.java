@@ -49,7 +49,7 @@ public class CSGOInventoryMapper {
         } catch (Exception ex) {
             if (ex instanceof RestClientResponseException e) {
                 if (e.getRawStatusCode() == 403) { // this is returned when the inventory (or the account) of the user is private
-                    return HttpResponseMappingStatus.FORBIDDEN;
+                    return HttpResponseMappingStatus.SUCCESS;
                 } else if (e.getRawStatusCode() == 429) {
                     LOGGER.error("429 - Too many requests");
                 }
