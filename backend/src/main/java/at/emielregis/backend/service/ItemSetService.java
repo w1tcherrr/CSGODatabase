@@ -191,7 +191,8 @@ public record ItemSetService(ItemSetRepository itemSetRepository) {
             "Pinups Capsule",
             "Enfu Sticker Capsule",
             "Sticker Capsule",
-            "Sticker Capsule 2"
+            "Sticker Capsule 2",
+            "10 Year Birthday Sticker Capsule"
         ).stream().filter(Objects::nonNull).toList();
     }
 
