@@ -29,8 +29,13 @@ public class ItemTypeService {
     }
 
     public List<ItemType> getAllTypesForSet(ItemSet set) {
-        LOGGER.info("ItemService#getAllNamesForSet(" + set.toString() + ")");
+        LOGGER.info("ItemService#getAllTypesForSet(" + set.toString() + ")");
         return itemTypeRepository.getAllTypesForSet(set);
+    }
+
+    public List<ItemName> getAllNamesForSet(ItemSet set) {
+        LOGGER.info("ItemService#getAllNamesForSet(" + set.toString() + ")");
+        return itemTypeRepository.getAllNamesForSet(set);
     }
 
     public List<ItemType> getTypeForItemNameAndParams(ItemName itemName, Exterior exterior, SpecialItemType specialItemType) {

@@ -138,7 +138,7 @@ public abstract class AbstractDataWriter {
     protected List<String[]> createLinesForItemSet(ItemSet set) {
         LOGGER.info("AbstractDataWriter#createLinesForItemSet(" + set.toString() + ")");
 
-        List<ItemType> allValidItemTypes = itemTypeService.getAllTypesForSet(set);
+        List<ItemName> allValidItemNames = itemTypeService.getAllNamesForSet(set);
 
         List<String[]> lines = Collections.synchronizedList(new ArrayList<>());
         AtomicInteger index = new AtomicInteger(1);
@@ -177,12 +177,12 @@ public abstract class AbstractDataWriter {
             }
         }
 
-        int totalAmount = allValidItemTypes.size();
+        int totalAmount = allValidItemNames.size();
         List<Exterior> finalExteriors = exteriors;
-        allValidItemTypes.parallelStream().forEach(itemType -> {
-            LOGGER.info("Analysing item " + index.getAndIncrement() + "/" + totalAmount + ": " + itemType);
+        allValidItemNames.parallelStream().forEach(itemName -> {
+            LOGGER.info("Analysing item " + index.getAndIncrement() + "/" + totalAmount + ": " + itemName);
 
-            String[] currentLine = formatLineForItemName(itemType.getItemName(), setHasStatTrak, setHasSouvenir, finalExteriors);
+            String[] currentLine = formatLineForItemName(itemName, setHasStatTrak, setHasSouvenir, finalExteriors);
 
             lines.add(currentLine);
         });

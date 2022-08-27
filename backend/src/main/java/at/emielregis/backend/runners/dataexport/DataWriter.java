@@ -22,11 +22,11 @@ public record DataWriter(CombinedDataWriter combinedDataWriter,
                          StorageUnitWriter storageUnitWriter,
                          PriceWriter priceWriter) {
     public void write() {
+        miscellaneousWriter.writeWorkbook("Miscellaneous_Data.xlsx");
         priceWriter.writeWorkbook("Price_Analysis.xlsx");
         combinedDataWriter.writeWorkbook("Combined_Data.xlsx");
         caseWriter.writeWorkbook("Cases.xlsx");
         majorWriter.writeWorkbook("Majors.xlsx");
-        miscellaneousWriter.writeWorkbook("Miscellaneous_Data.xlsx");
         patchWriter.writeWorkbook("Patch_Collections.xlsx");
         souvenirWriter.writeWorkbook("Souvenir_Collections.xlsx");
         stickerWriter.writeWorkbook("Sticker_Collections.xlsx");

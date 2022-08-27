@@ -43,6 +43,11 @@ public interface ItemTypeRepository extends JpaRepository<ItemType, Long> {
     List<ItemType> getAllTypesForSet(@Param("set") ItemSet set);
 
     @Query(
+        "SELECT distinct i.itemName from ItemType i where i.itemSet = :set"
+    )
+    List<ItemName> getAllNamesForSet(@Param("set") ItemSet set);
+
+    @Query(
         "Select t from ItemType t where " +
             "(:name IS NULL OR t.itemName = :name) and " +
             "(:exterior IS NULL OR t.exterior = :exterior) and " +
