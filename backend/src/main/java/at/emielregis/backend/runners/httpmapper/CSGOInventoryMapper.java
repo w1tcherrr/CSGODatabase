@@ -5,7 +5,9 @@ import at.emielregis.backend.data.entities.CSGOInventory;
 import at.emielregis.backend.data.entities.items.ItemCollection;
 import at.emielregis.backend.data.enums.HttpResponseMappingStatus;
 import at.emielregis.backend.data.responses.HttpInventoryResponse;
+import at.emielregis.backend.service.BusyWaitingService;
 import at.emielregis.backend.service.UrlProvider;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -20,14 +22,12 @@ import java.util.List;
  * This class is used to map CSGO inventories by providing the id64 of a SteamAccount.
  */
 @Component
+@RequiredArgsConstructor
 public class CSGOInventoryMapper {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private final UrlProvider urlProvider;
-
-    public CSGOInventoryMapper(UrlProvider urlProvider) {
-        this.urlProvider = urlProvider;
-    }
+    private final BusyWaitingService busyWaitingService;
 
     /**
      * Stores the inventory of the Steam User with the id64 in the provided accountBuilder using the
@@ -36,8 +36,7 @@ public class CSGOInventoryMapper {
      * @param accountBuilder The accountBuilder in which to store the inventory.
      * @param id64           The player whose inventory to get.
      * @param restTemplate   The restTemplate.
-     * @return FORBIDDEN if the Account is private, UNKNOWN_EXCEPTION if the Rest Call fails for unknown reasons,
-     * FAILED if the API returns a 429 status code or SUCCESS if everything works correctly.
+     * @return The status of the request.
      */
     public HttpResponseMappingStatus getInventory(CSGOAccount.CSGOAccountBuilder accountBuilder, String id64, RestTemplate restTemplate) {
         LOGGER.info("Mapping inventory for user with id: {}", id64);
@@ -52,6 +51,8 @@ public class CSGOInventoryMapper {
                     return HttpResponseMappingStatus.SUCCESS;
                 } else if (e.getRawStatusCode() == 429) {
                     LOGGER.error("429 - Too many requests");
+                    busyWaitingService.wait(300);
+                    return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
                 }
             } else { // this generally only happens if the internet is down or the proxy rejects the request
                 LOGGER.error(ex.getMessage());
@@ -75,6 +76,8 @@ public class CSGOInventoryMapper {
                 if (ex instanceof RestClientResponseException e) {
                     if (e.getRawStatusCode() == 429) {
                         LOGGER.error("429 - Too many requests");
+                        busyWaitingService.wait(300);
+                        return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
                     }
                 } else { // this generally only happens if the internet is down or the proxy rejects the request
                     LOGGER.error(ex.getMessage());
@@ -98,6 +101,8 @@ public class CSGOInventoryMapper {
                     if (ex instanceof RestClientResponseException e) {
                         if (e.getRawStatusCode() == 429) {
                             LOGGER.error("429 - Too many requests");
+                            busyWaitingService.wait(300);
+                            return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
                         }
                     } else { // this generally only happens if the internet is down or the proxy rejects the request
                         LOGGER.error(ex.getMessage());

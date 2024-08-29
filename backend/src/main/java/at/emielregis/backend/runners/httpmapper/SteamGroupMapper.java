@@ -2,11 +2,7 @@ package at.emielregis.backend.runners.httpmapper;
 
 import at.emielregis.backend.data.entities.SteamAccount;
 import at.emielregis.backend.data.entities.SteamGroup;
-import at.emielregis.backend.service.BusyWaitingService;
-import at.emielregis.backend.service.CSGOAccountService;
-import at.emielregis.backend.service.PersistentDataService;
-import at.emielregis.backend.service.SteamAccountService;
-import at.emielregis.backend.service.UrlProvider;
+import at.emielregis.backend.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -103,7 +99,7 @@ public class SteamGroupMapper {
                 if (ex instanceof RestClientResponseException e) {
                     if (e.getRawStatusCode() == 429) {
                         LOGGER.error("429 - Too many requests");
-                        busyWaitingService.wait(60);
+                        busyWaitingService.wait(300);
                     }
                 } else {
                     LOGGER.error(ex.getMessage());

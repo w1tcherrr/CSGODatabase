@@ -2,17 +2,9 @@ package at.emielregis.backend.runners.dataexport.writers;
 
 import at.emielregis.backend.data.entities.items.ItemName;
 import at.emielregis.backend.data.entities.items.ItemSet;
-import at.emielregis.backend.data.entities.items.ItemType;
 import at.emielregis.backend.data.enums.Exterior;
 import at.emielregis.backend.runners.dataexport.SheetBuilder;
-import at.emielregis.backend.service.CSGOAccountService;
-import at.emielregis.backend.service.ItemCategoryService;
-import at.emielregis.backend.service.ItemNameService;
-import at.emielregis.backend.service.ItemService;
-import at.emielregis.backend.service.ItemSetService;
-import at.emielregis.backend.service.ItemTypeService;
-import at.emielregis.backend.service.SteamAccountService;
-import at.emielregis.backend.service.StickerService;
+import at.emielregis.backend.service.*;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.IndexedColors;
@@ -27,16 +19,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class AbstractDataWriter {
     protected static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    private static final String DIRECTORY_PATH = "C:\\Users\\mitch\\Documents\\GitHub\\CSGODatabaseSpring\\output";
+    private static final String DIRECTORY_PATH = "C:\\Users\\misch\\IdeaProjects\\CSGODatabase\\output";
 
     protected final ItemService itemService;
     protected final SteamAccountService steamAccountService;
@@ -162,10 +150,10 @@ public abstract class AbstractDataWriter {
             titleArray[2] = setHasSouvenir ? "Souvenir Amount" : "StatTrak Amount";
         }
 
-        if (exteriors.size() > 0) {
+        if (!exteriors.isEmpty()) {
             int exteriorIndex = 4;
             for (Exterior exterior : exteriors) {
-                titleArray[exteriorIndex++] = "" + exterior.getName();
+                titleArray[exteriorIndex++] = exterior.getName();
             }
 
             exteriorIndex++;

@@ -58,11 +58,6 @@ public interface ItemTypeRepository extends JpaRepository<ItemType, Long> {
                                                @Param("specialitemtype") SpecialItemType specialItemType);
 
     @Query(
-        "Select t from ItemType t where t.itemName.name = 'Storage Unit'"
-    )
-    ItemType getStorageUnitType();
-
-    @Query(
         "Select t from ItemType t where t.itemName in :search"
     )
     List<ItemType> getAllTypesForNames(@Param("search") List<ItemName> search);

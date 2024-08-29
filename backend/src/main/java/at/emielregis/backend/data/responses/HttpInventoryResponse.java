@@ -1,17 +1,13 @@
 package at.emielregis.backend.data.responses;
 
-import at.emielregis.backend.data.entities.items.ItemCategory;
-import at.emielregis.backend.data.entities.items.ItemCollection;
-import at.emielregis.backend.data.entities.items.ItemName;
-import at.emielregis.backend.data.entities.items.ItemSet;
-import at.emielregis.backend.data.entities.items.ItemType;
-import at.emielregis.backend.data.entities.items.Sticker;
+import at.emielregis.backend.data.entities.items.*;
 import at.emielregis.backend.data.enums.Exterior;
 import at.emielregis.backend.data.enums.Rarity;
 import at.emielregis.backend.data.enums.SpecialItemType;
 import at.emielregis.backend.data.enums.StickerType;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,6 +28,7 @@ public class HttpInventoryResponse {
             new String[]{"Hi", " My Game Is"},
             new String[]{"Rock", " Paper", " Scissors (Foil)"},
             new String[]{"Run CT", " Run"},
+            new String[]{"Run T", " Run"},
             new String[]{"Twistzz (Gold", " Champion) | Antwerp 2022"},
             new String[]{"Twistzz (Holo", " Champion) | Antwerp 2022"},
             new String[]{"Twistzz (Glitter", " Champion) | Antwerp 2022"},
@@ -46,7 +43,52 @@ public class HttpInventoryResponse {
             new String[]{"broky (Glitter", " Champion) | Antwerp 2022"},
             new String[]{"karrigan (Gold", " Champion) | Antwerp 2022"},
             new String[]{"karrigan (Holo", " Champion) | Antwerp 2022"},
-            new String[]{"karrigan (Glitter", " Champion) | Antwerp 2022"}
+            new String[]{"karrigan (Glitter", " Champion) | Antwerp 2022"},
+            new String[]{"Jame (Gold", " Champion) | Rio 2022"},
+            new String[]{"Jame (Holo", " Champion) | Rio 2022"},
+            new String[]{"Jame (Glitter", " Champion) | Rio 2022"},
+            new String[]{"fame (Gold", " Champion) | Rio 2022"},
+            new String[]{"fame (Holo", " Champion) | Rio 2022"},
+            new String[]{"fame (Glitter", " Champion) | Rio 2022"},
+            new String[]{"FL1T (Gold", " Champion) | Rio 2022"},
+            new String[]{"FL1T (Holo", " Champion) | Rio 2022"},
+            new String[]{"FL1T (Glitter", " Champion) | Rio 2022"},
+            new String[]{"qikert (Gold", " Champion) | Rio 2022"},
+            new String[]{"qikert (Holo", " Champion) | Rio 2022"},
+            new String[]{"qikert (Glitter", " Champion) | Rio 2022"},
+            new String[]{"n0rb3r7 (Gold", " Champion) | Rio 2022"},
+            new String[]{"n0rb3r7 (Holo", " Champion) | Rio 2022"},
+            new String[]{"n0rb3r7 (Glitter", " Champion) | Rio 2022"},
+            new String[]{"ZywOo (Gold", " Champion) | Paris 2023"},
+            new String[]{"ZywOo (Holo", " Champion) | Paris 2023"},
+            new String[]{"ZywOo (Glitter", " Champion) | Paris 2023"},
+            new String[]{"dupreeh (Gold", " Champion) | Paris 2023"},
+            new String[]{"dupreeh (Holo", " Champion) | Paris 2023"},
+            new String[]{"dupreeh (Glitter", " Champion) | Paris 2023"},
+            new String[]{"apEX (Gold", " Champion) | Paris 2023"},
+            new String[]{"apEX (Holo", " Champion) | Paris 2023"},
+            new String[]{"apEX (Glitter", " Champion) | Paris 2023"},
+            new String[]{"Magisk (Gold", " Champion) | Paris 2023"},
+            new String[]{"Magisk (Holo", " Champion) | Paris 2023"},
+            new String[]{"Magisk (Glitter", " Champion) | Paris 2023"},
+            new String[]{"Spinx (Gold", " Champion) | Paris 2023"},
+            new String[]{"Spinx (Holo", " Champion) | Paris 2023"},
+            new String[]{"Spinx (Glitter", " Champion) | Paris 2023"},
+            new String[]{"b1t (Gold", " Champion) | Copenhagen 2024"},
+            new String[]{"b1t (Holo", " Champion) | Copenhagen 2024"},
+            new String[]{"b1t (Glitter", " Champion) | Copenhagen 2024"},
+            new String[]{"w0nderful (Gold", " Champion) | Copenhagen 2024"},
+            new String[]{"w0nderful (Holo", " Champion) | Copenhagen 2024"},
+            new String[]{"w0nderful (Glitter", " Champion) | Copenhagen 2024"},
+            new String[]{"jL (Gold", " Champion) | Copenhagen 2024"},
+            new String[]{"jL (Holo", " Champion) | Copenhagen 2024"},
+            new String[]{"jL (Glitter", " Champion) | Copenhagen 2024"},
+            new String[]{"Aleksib (Gold", " Champion) | Copenhagen 2024"},
+            new String[]{"Aleksib (Holo", " Champion) | Copenhagen 2024"},
+            new String[]{"Aleksib (Glitter", " Champion) | Copenhagen 2024"},
+            new String[]{"iM (Gold", " Champion) | Copenhagen 2024"},
+            new String[]{"iM (Holo", " Champion) | Copenhagen 2024"},
+            new String[]{"iM (Glitter", " Champion) | Copenhagen 2024"}
         );
 
     private final HashMap<UniqueItemTypeIdentifier, ItemCollection> items = new HashMap<>();
@@ -57,6 +99,7 @@ public class HttpInventoryResponse {
     @JsonProperty("more_items")
     private Integer hasMoreItems;
 
+    @Getter
     @JsonProperty("last_assetid")
     private String lastAssetId;
 
@@ -114,7 +157,6 @@ public class HttpInventoryResponse {
             final AtomicReference<Exterior> atomicExterior = new AtomicReference<>();
             final AtomicReference<String> atomicItemSet = new AtomicReference<>();
             final AtomicReference<Rarity> atomicRarity = new AtomicReference<>();
-            final AtomicReference<Integer> atomicStorageUnitAmount = new AtomicReference<>();
             final AtomicReference<List<Sticker>> atomicStickers = new AtomicReference<>();
             final AtomicReference<String> atomicMarketHashName = new AtomicReference<>();
             map.forEach((key, value) -> {
@@ -135,7 +177,6 @@ public class HttpInventoryResponse {
                                 String value2 = (String) value1;
                                 if (value2.contains("sticker_info")) {
                                     int amountOfStickers = value2.split("<img").length - 1;
-
 
                                     // the sticker data is only sent as html for displaying it so I have to manually
                                     // extract the sticker names from the html
@@ -195,9 +236,6 @@ public class HttpInventoryResponse {
                                         atomicStickers.set(stickers);
                                     }
                                 }
-                                if (value2.startsWith("Number of Items: ")) {
-                                    atomicStorageUnitAmount.set(Integer.parseInt(value2.substring(17).trim()));
-                                }
                             }
                         }));
                     }
@@ -206,9 +244,11 @@ public class HttpInventoryResponse {
                         maps.forEach(map1 -> {
                             String category = (String) map1.get("category");
                             switch (category) {
-                                case "ItemSet", "StickerCapsule", "PatchCapsule", "SprayCapsule" -> atomicItemSet.set((String) map1.get("localized_tag_name"));
+                                case "ItemSet", "StickerCapsule", "PatchCapsule", "SprayCapsule" ->
+                                    atomicItemSet.set((String) map1.get("localized_tag_name"));
                                 case "Rarity" -> atomicRarity.set(Rarity.of((String) map1.get("localized_tag_name")));
-                                case "Exterior" -> atomicExterior.set(Exterior.of((String) map1.get("localized_tag_name")));
+                                case "Exterior" ->
+                                    atomicExterior.set(Exterior.of((String) map1.get("localized_tag_name")));
                                 case "Quality" -> {
                                     String quality = (String) map1.get("localized_tag_name");
                                     if (quality.startsWith("StatTrak")) {
@@ -249,8 +289,6 @@ public class HttpInventoryResponse {
             itemTypeBuilder.specialItemType(SpecialItemType.fromBooleans(atomicStatTrak.get(), atomicSouvenir.get()));
 
             item.setItemType(itemTypeBuilder.build());
-
-            item.setStorageUnitAmount(atomicStorageUnitAmount.get());
 
             item.setNameTag(atomicNameTag.get());
 
@@ -296,15 +334,6 @@ public class HttpInventoryResponse {
      */
     public boolean hasMoreItems() {
         return hasMoreItems != null && hasMoreItems == 1;
-    }
-
-    /**
-     * Returns the asset id of the last item of this request.
-     *
-     * @return The last asset id if one exists, null otherwise.
-     */
-    public String getLastAssetId() {
-        return lastAssetId;
     }
 
     public boolean successful() {

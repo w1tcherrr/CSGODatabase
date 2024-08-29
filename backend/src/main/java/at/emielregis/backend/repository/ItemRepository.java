@@ -20,12 +20,7 @@ public interface ItemRepository extends JpaRepository<ItemCollection, Long> {
     @Query(
         "SELECT sum(i.amount) from ItemCollection i"
     )
-    long itemCountNoStorageUnits();
-
-    @Query(
-        "SELECT sum(i.storageUnitAmount * i.amount) from ItemCollection i where i.storageUnitAmount IS NOT NULL"
-    )
-    Long itemCountInStorageUnits();
+    long countTotalItems();
 
     @Modifying
     @Query(
@@ -37,16 +32,6 @@ public interface ItemRepository extends JpaRepository<ItemCollection, Long> {
         "Select sum(i.amount) from ItemCollection i where i.itemType in :types"
     )
     Long sumForItemTypes(@Param("types") List<ItemType> itemType);
-
-    @Query(
-        "Select count(i) from ItemCollection i where i.itemType = :type and (i.storageUnitAmount IS NULL or i.storageUnitAmount = 0)"
-    )
-    long countEmptyStorageUnits(@Param("type") ItemType storageUnitType);
-
-    @Query(
-        "Select i from ItemCollection i where i.itemType = :type and (i.storageUnitAmount IS NOT NULL AND i.storageUnitAmount > 0)"
-    )
-    List<ItemCollection> getAllNonEmptyStorageUnits(@Param("type") ItemType storageUnitType);
 
     @Query(
         "Select i.id from ItemCollection i where i not in (select i1 from CSGOInventory inv join inv.itemCollections i1)"

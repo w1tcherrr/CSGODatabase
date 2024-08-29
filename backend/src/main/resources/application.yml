@@ -10,21 +10,21 @@ user-properties:
   # the maximum amount of accounts to be mapped in the current session - the mapping terminates after the specified amount
   # accounts WITHOUT inventories are also counted! This is mostly for purposes of testing the performance! Put this to the same
   # amount as max-csgo-accounts if you don't want to measure performance.
-  max-accounts-for-session: 2000000
-  # the minimum items in an inventory for the accounts inventory to be stored (to filter out smurf accounts)
-  min-items-per-account: 10
+  max-accounts-for-session: 1000
+  # the minimum items in an inventory for the accounts inventory to be stored (to filter out empty accounts)
+  min-items-per-account: 5
   # maximum amount of ids to be selected per batch
   max-ids-per-batch: 50
   # the minimum amount of unmapped steam ids to be kept as a buffer (should be bigger than max-ids-per-batch * amount-of-threads)
-  account-buffer-size: 100000
+  account-buffer-size: 50000
   # the amount of threads the application uses to map accounts
-  amount-of-threads: 50
+  amount-of-threads: 10
   # the amount of proxies the application uses - the proxies are spread evenly over the threads if the thread-number is
   # smaller than the proxy number. E.G.: 100, 100 -> One thread/One proxy; 20,100 -> One thread, Five proxies (Round Robin)
   # General rule: amount-of-proxies % amount-of-threads should be 0 (even distribution)!
-  amount-of-proxies: 250
+  amount-of-proxies: 10
   # the maximum amount of proxies to be read from the proxies file
-  max-proxies: 250
+  max-proxies: 10
 
 spring:
   h2:
@@ -41,7 +41,7 @@ spring:
     show-sql: false
     hibernate:
       ddl-auto: update
-    # Allows to fetch lazy properties outside of the original transaction. Although this sounds helpful, the property
+    # Allows to fetch lazy properties outside the original transaction. Although this sounds helpful, the property
     # is disabled since it breaks the principle of least astonishment and leads to bad performance.
     open-in-view: false
 

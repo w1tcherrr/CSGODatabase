@@ -1,19 +1,9 @@
 package at.emielregis.backend.data.entities.items;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.Hibernate;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
+import javax.persistence.*;
 import java.util.List;
 import java.util.Objects;
 
@@ -36,9 +26,6 @@ public class ItemCollection {
     private int amount;
 
     @Column(updatable = false)
-    private Integer storageUnitAmount;
-
-    @Column(updatable = false)
     private String nameTag;
 
     @ManyToMany
@@ -58,8 +45,9 @@ public class ItemCollection {
     }
 
     public boolean deepEquals(ItemCollection item) {
-        return compareStickers(item) && Objects.equals(this.storageUnitAmount, item.getStorageUnitAmount()) &&
-            Objects.equals(this.nameTag, item.getNameTag()) && this.getItemType().deepEquals(item.getItemType());
+        return compareStickers(item)
+            && Objects.equals(this.nameTag, item.getNameTag())
+            && this.getItemType().deepEquals(item.getItemType());
     }
 
     private boolean compareStickers(ItemCollection item) {
@@ -76,7 +64,7 @@ public class ItemCollection {
             }
             return true;
         } else {
-            return this.stickers == null ? item.stickers.size() == 0 : this.stickers.size() == 0;
+            return this.stickers == null ? item.stickers.isEmpty() : this.stickers.isEmpty();
         }
     }
 }

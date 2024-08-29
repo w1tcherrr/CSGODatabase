@@ -1,16 +1,7 @@
 package at.emielregis.backend.service.mapper;
 
-import at.emielregis.backend.data.entities.items.ItemCategory;
-import at.emielregis.backend.data.entities.items.ItemCollection;
-import at.emielregis.backend.data.entities.items.ItemName;
-import at.emielregis.backend.data.entities.items.ItemSet;
-import at.emielregis.backend.data.entities.items.ItemType;
-import at.emielregis.backend.data.entities.items.Sticker;
-import at.emielregis.backend.repository.ItemCategoryRepository;
-import at.emielregis.backend.repository.ItemNameRepository;
-import at.emielregis.backend.repository.ItemSetRepository;
-import at.emielregis.backend.repository.ItemTypeRepository;
-import at.emielregis.backend.repository.StickerRepository;
+import at.emielregis.backend.data.entities.items.*;
+import at.emielregis.backend.repository.*;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -35,7 +26,6 @@ public record Mapper(ItemTypeRepository itemTypeRepository,
         return ItemCollection.builder()
             .amount(transientItem.getAmount())
             .nameTag(transientItem.getNameTag())
-            .storageUnitAmount(transientItem.getStorageUnitAmount())
             .itemType(map(transientItem.getItemType()))
             .stickers(map(transientItem.getStickers()))
             .build();

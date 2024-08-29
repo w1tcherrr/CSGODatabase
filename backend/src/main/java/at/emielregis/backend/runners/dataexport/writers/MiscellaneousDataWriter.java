@@ -1,14 +1,7 @@
 package at.emielregis.backend.runners.dataexport.writers;
 
 import at.emielregis.backend.runners.dataexport.SheetBuilder;
-import at.emielregis.backend.service.CSGOAccountService;
-import at.emielregis.backend.service.ItemCategoryService;
-import at.emielregis.backend.service.ItemNameService;
-import at.emielregis.backend.service.ItemService;
-import at.emielregis.backend.service.ItemSetService;
-import at.emielregis.backend.service.ItemTypeService;
-import at.emielregis.backend.service.SteamAccountService;
-import at.emielregis.backend.service.StickerService;
+import at.emielregis.backend.service.*;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.stereotype.Component;
 
@@ -26,10 +19,7 @@ public class MiscellaneousDataWriter extends AbstractDataWriter {
         SheetBuilder builder = SheetBuilder.create(workBook, "Miscellaneous");
         builder.setTitleRow("Miscellaneous");
 
-        // total amounts
-        long noStorageUnitCount = itemService.countItemsNoStorageUnits();
-        long onlyStorageUnitCount = itemService.countItemsInStorageUnits();
-        long totalCount = noStorageUnitCount + onlyStorageUnitCount;
+        long totalItemAmount = itemService.countTotalItems();
 
         builder.emptyLines(1);
         addRows(
@@ -51,8 +41,7 @@ public class MiscellaneousDataWriter extends AbstractDataWriter {
             "Due to limitations in the API for public inventory access some properties of items can not be retrieved. For example, the float of a skin is not easily retrievable",
             "aswell as the 'state' of an item. As an example: Whether a Service Medal is green, blue, etc. is not sent via the API. Therefore I can't distinguish between the different levels for such items.",
             "Furthermore, some items are 'bugged' in the API. Generally, each gun/sticker/etc. belongs to a specific collection,",
-            "such as 'The Recoil Collection' or similar. For some items this attribute is not sent via the API and therefore they can't be assigned to a specific collection.",
-            "Furthermore, the content of storage units can not be retrieved. Only the name-tag and the amount of items in the unit is retrievable."
+            "such as 'The Recoil Collection' or similar. For some items this attribute is not sent via the API and therefore they can't be assigned to a specific collection."
         );
         builder.emptyLines(1);
 
@@ -61,15 +50,12 @@ public class MiscellaneousDataWriter extends AbstractDataWriter {
         builder.addRow(null, "Total CSGO-Accounts with inventories queried:", "" + csgoAccountService.countWithInventory());
         builder.emptyLines(1);
 
-        builder.addRow(null, "Total Items (no Storage Units):", "" + noStorageUnitCount);
-        builder.addRow(null, "Total Items in Storage Units:", "" + onlyStorageUnitCount);
-        builder.addRow(null, "Total Items:", "" + totalCount);
+        builder.addRow(null, "Total Items:", "" + totalItemAmount);
         builder.emptyLines(1);
 
         builder.addRow(null, "Most Storage Units in one inventory:", "" + itemService.getHighestStorageUnitCount());
         builder.addRow(null, "Most full Storage Units in one inventory:", "" + itemService.getHighestFullStorageUnitCount());
-        builder.addRow(null, "Most items in one inventory:", "" + itemService.getHighestSingleInventoryCount());
-        builder.addRow(null, "Average items per inventory:", "" + totalCount / csgoAccountService.countWithInventory());
+        builder.addRow(null, "Average items per inventory:", "" + totalItemAmount / csgoAccountService.countWithInventory());
         builder.emptyLines(1);
 
         builder.addRow(null, "Total amount of item sets:", "" + itemSetService.count());

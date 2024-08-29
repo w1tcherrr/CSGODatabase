@@ -11,26 +11,34 @@ import java.time.LocalDateTime;
 public class BusyWaitingService {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    private LocalDateTime locked_until = LocalDateTime.MIN;
+    private final ThreadLocal<LocalDateTime> locked_until = ThreadLocal.withInitial(() -> LocalDateTime.MIN);
 
     /**
-     * Busy waits for the specified amount of time.
+     * Waits for the specified amount of time.
      *
      * @param seconds The amount of seconds to wait.
      */
     public void wait(int seconds) {
-        LOGGER.info("Locking for " + seconds + " seconds.");
-        locked_until = LocalDateTime.now().plusMinutes(seconds);
+        LOGGER.info("Thread " + Thread.currentThread().getName() + " locking for " + seconds + " seconds.");
+        locked_until.set(LocalDateTime.now().plusSeconds(seconds));
         waitForLock();
     }
 
-    public void waitForLock() {
+    private void waitForLock() {
         while (isLocked()) {
-            Thread.onSpinWait();
+            try {
+                long millisToWait = locked_until.get().minusNanos(System.nanoTime()).getNano() / 1000000L;
+                if (millisToWait > 0) {
+                    Thread.sleep(millisToWait);  // Sleep only for the remaining time
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();  // Restore the interrupted status
+                break;
+            }
         }
     }
 
     public boolean isLocked() {
-        return locked_until.isAfter(LocalDateTime.now());
+        return locked_until.get().isAfter(LocalDateTime.now());
     }
 }

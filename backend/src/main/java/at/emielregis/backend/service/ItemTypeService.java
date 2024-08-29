@@ -42,10 +42,6 @@ public class ItemTypeService {
         return itemTypeRepository.getTypeForItemNameAndParams(itemName, exterior, specialItemType);
     }
 
-    public ItemType getStorageUnitType() {
-        return itemTypeRepository.getStorageUnitType();
-    }
-
     public List<ItemType> getTypesForItemNames(List<ItemName> search) {
         return itemTypeRepository.getAllTypesForNames(search);
     }

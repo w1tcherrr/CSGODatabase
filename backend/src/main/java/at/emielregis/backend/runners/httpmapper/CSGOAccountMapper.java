@@ -3,11 +3,7 @@ package at.emielregis.backend.runners.httpmapper;
 import at.emielregis.backend.data.entities.CSGOAccount;
 import at.emielregis.backend.data.entities.CSGOInventory;
 import at.emielregis.backend.data.enums.HttpResponseMappingStatus;
-import at.emielregis.backend.service.CSGOAccountService;
-import at.emielregis.backend.service.CSGOInventoryService;
-import at.emielregis.backend.service.ItemService;
-import at.emielregis.backend.service.ProxyService;
-import at.emielregis.backend.service.SteamAccountService;
+import at.emielregis.backend.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,11 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * This class is used to map CSGOAccounts by first searching for valid accounts from
@@ -113,9 +105,9 @@ public class CSGOAccountMapper {
         }
 
         proxyService.addEmptyThread(() -> {
-            while (!stop || accountsToPersist.size() > 0) {
+            while (!stop || !accountsToPersist.isEmpty()) {
 
-                if (accountsToPersist.size() == 0) {
+                if (accountsToPersist.isEmpty()) {
                     try {
                         Thread.sleep(5000);
                     } catch (InterruptedException e) {
@@ -193,7 +185,7 @@ public class CSGOAccountMapper {
         LOGGER.info("Mapping account with ids: {} next", nextAccounts);
 
         // this means that no accounts should be mapped anymore from the thread - this happens when the max is reached
-        if (nextAccounts.size() == 0) {
+        if (nextAccounts.isEmpty()) {
             LOGGER.info("Finished mapping {} accounts.", MAX_CSGO_ACCOUNTS);
             stop = true;
             return;
@@ -235,13 +227,14 @@ public class CSGOAccountMapper {
      * @param template The RestTemplate from which to send http calls.
      */
     @Transactional
-    protected void mapUser(String id64, RestTemplate template) {
+    public void mapUser(String id64, RestTemplate template) {
 
         // if the amount of mapped inventories is greater or equal to the max amount the mapping is stopped in all threads
         if (alreadyMappedAccountsWithInventories >= MAX_CSGO_ACCOUNTS) {
             stop = true;
             return;
         }
+
         if (alreadyMappedAccounts >= MAX_ACCOUNTS_FOR_SESSION) {
             LOGGER.info("MAX ACCOUNTS FOR SESSION REACHED - TERMINATING");
             stop = true;
@@ -275,7 +268,6 @@ public class CSGOAccountMapper {
 
         // We increase the amount of alreadyMappedAccountsWithInventories if it has an inventory. If this amount is greater than the allowed amount we don't store it and return instead.
         // The program will automatically terminate afterwards since the next id selection will be empty by default. Otherwise we save the inventory and the account.
-
         // check this right before saving - we don't want duplicate accounts to be saved.
         // they should not be saved either way, but it is better to check again
         if (alreadyMapped(id64)) {
@@ -304,13 +296,13 @@ public class CSGOAccountMapper {
      * This method takes long and should only be run once after the whole mapping is done.
      */
     @Transactional
-    protected void deleteOrphanedItems() {
+    public void deleteOrphanedItems() {
         // use sets not lists for performance as ids may not be duplicate anyway
         LOGGER.info("Delete orphaned items");
 
         Set<Long> orphanedIDs = itemService.getOrphanedIDs();
 
-        if (orphanedIDs.size() == 0) {
+        if (orphanedIDs.isEmpty()) {
             LOGGER.info("No orphaned items!");
             return;
         }
@@ -329,7 +321,7 @@ public class CSGOAccountMapper {
      * This method takes long and should only be run once after the whole mapping is done.
      */
     @Transactional
-    protected void deleteOrphanedInventories() {
+    public void deleteOrphanedInventories() {
         // use sets not lists for performance as ids may not be duplicate anyway
         LOGGER.info("Delete orphaned inventories");
 

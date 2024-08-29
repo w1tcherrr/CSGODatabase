@@ -18,12 +18,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -104,7 +99,7 @@ public class ItemPriceMapper {
                 SteamMarketPriceResponse steamMarketPriceResponse;
                 Integer currentPage = null;
                 try {
-                    if (idsForThread.size() > 0) {
+                    if (!idsForThread.isEmpty()) {
                         currentPage = idsForThread.get(0);
                         idsForThread = idsForThread.subList(1, idsForThread.size());
                     } else {
@@ -169,7 +164,7 @@ public class ItemPriceMapper {
 
         for (ItemType type : types) {
             List<IPriceable> prices = priceDtos.get(type.getMarketHashName());
-            if (prices == null || prices.size() == 0) {
+            if (prices == null || prices.isEmpty()) {
                 continue;
             }
             int amount = itemService.getTotalAmountForType(type);
@@ -201,11 +196,15 @@ public class ItemPriceMapper {
 
     public Double getSingleItemPriceForSticker(ItemName itemName) {
         List<ItemType> types = itemTypeService.getTypesForItemNames(List.of(itemName));
-        if (types.size() < 1 || types.size() > 2) {
+        if (types.isEmpty() || types.size() > 2) {
             throw new IllegalStateException("Found " + types.size() + " ItemNames for Sticker " + itemName.getName() + " instead of 1 (or 2): " + types + "!");
         }
         ItemType type = types.get(0);
         List<IPriceable> prices = priceDtos.get(type.getMarketHashName());
+
+        if (prices == null || prices.isEmpty()) {
+            return -1d;
+        }
 
         return averagePrice(prices);
     }
