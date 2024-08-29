@@ -51,10 +51,6 @@ public class MiscellaneousDataWriter extends AbstractDataWriter {
         builder.emptyLines(1);
 
         builder.addRow(null, "Total Items:", "" + totalItemAmount);
-        builder.emptyLines(1);
-
-        builder.addRow(null, "Most Storage Units in one inventory:", "" + itemService.getHighestStorageUnitCount());
-        builder.addRow(null, "Most full Storage Units in one inventory:", "" + itemService.getHighestFullStorageUnitCount());
         builder.addRow(null, "Average items per inventory:", "" + totalItemAmount / csgoAccountService.countWithInventory());
         builder.emptyLines(1);
 
