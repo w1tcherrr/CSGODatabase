@@ -13,7 +13,7 @@ user-properties:
   max-accounts-for-session: 2000000
   # the minimum items in an inventory for the accounts inventory to be stored (to filter out empty accounts)
   min-items-per-account: 5
-  # maximum amount of ids to be selected per batch
+  # maximum amount of ids to be selected per batch - will be selected SEPARATELY for each thread.
   max-ids-per-batch: 50
   # the minimum amount of unmapped steam ids to be kept as a buffer (should be bigger than max-ids-per-batch * amount-of-threads)
   account-buffer-size: 50000

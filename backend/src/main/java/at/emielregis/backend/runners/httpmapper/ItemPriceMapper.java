@@ -46,7 +46,7 @@ public class ItemPriceMapper {
     public void start() {
         LOGGER.info("RUNNING ITEM PRICE MAPPER");
         parseSkinPortPrices();
-        parseCsgoBackPackPrices();
+        // parseCsgoBackPackPrices();
         LOGGER.info("FINISHED ITEM PRICE MAPPER");
     }
 

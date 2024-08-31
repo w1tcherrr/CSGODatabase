@@ -47,7 +47,7 @@ public class StickerWriter extends AbstractDataWriter {
         sortByNumericalColumn(rows, 1);
         rows.forEach(line -> overviewBuilder.addRow(null, line));
         overviewBuilder.emptyLines(1);
-        overviewBuilder.addRow(null, "Note: A few old capsules are not identified by the API - their amount are not listed here.");
+        overviewBuilder.addRow(null, "Note: A few old capsules are not identified by the API - their amount are not listed here. You can still find those stickers in the other sheets.");
 
         SheetBuilder unclassifiedBuilder = SheetBuilder.create(workBook, "Unclassified");
         unclassifiedBuilder.setTitleRow("Unclassified Stickers");
