@@ -32,6 +32,7 @@ public class CSGOAccountMapper {
     private final ProxyService proxyService;
 
     private final List<CSGOAccount> accountsToPersist = Collections.synchronizedList(new ArrayList<>());
+    private final BusyWaitingService busyWaitingService;
 
     /*
     The max amount of unique CS:GO inventories to be mapped (not the number of accounts since accounts without csgo,
@@ -82,7 +83,7 @@ public class CSGOAccountMapper {
         SteamAccountService steamAccountService,
         SteamGroupMapper steamGroupMapper,
         ItemService itemService,
-        ProxyService proxyService) {
+        ProxyService proxyService, BusyWaitingService busyWaitingService) {
         this.csgoAccountService = csgoAccountService;
         this.csgoInventoryService = csgoInventoryService;
         this.csgoInventoryMapper = csgoInventoryMapper;
@@ -90,6 +91,7 @@ public class CSGOAccountMapper {
         this.steamGroupMapper = steamGroupMapper;
         this.itemService = itemService;
         this.proxyService = proxyService;
+        this.busyWaitingService = busyWaitingService;
     }
 
     /**
@@ -108,11 +110,7 @@ public class CSGOAccountMapper {
             while (!stop || !accountsToPersist.isEmpty()) {
 
                 if (accountsToPersist.isEmpty()) {
-                    try {
-                        Thread.sleep(5000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                    busyWaitingService.wait(5);
                     continue;
                 }
 

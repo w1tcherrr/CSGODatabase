@@ -99,11 +99,11 @@ public class SteamGroupMapper {
                 if (ex instanceof RestClientResponseException e) {
                     if (e.getRawStatusCode() == 429) {
                         LOGGER.error("429 - Too many requests");
-                        busyWaitingService.wait(300);
+                        busyWaitingService.wait(240);
                     }
                 } else {
                     LOGGER.error(ex.getMessage());
-                    busyWaitingService.wait(300);
+                    busyWaitingService.wait(240);
                 }
                 continue;
             }
