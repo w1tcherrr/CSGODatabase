@@ -10,8 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import javax.persistence.EntityManager;
-import javax.persistence.NoResultException;
-import javax.persistence.TypedQuery;
 import java.lang.invoke.MethodHandles;
 import java.util.List;
 import java.util.Set;
@@ -85,7 +83,7 @@ public class ItemService {
         return amount;
     }
 
-    public long getTotalAmountForSetNoContainers(ItemSet set) {
+    public long getTotalAmountOfNonContainersForSet(ItemSet set) {
         LOGGER.info("ItemService#getTotalAmountForSetNoContainers(" + set.toString() + ")");
         List<ItemType> itemTypes = itemTypeService.getAllTypesForSet(set);
         if (itemTypes == null || itemTypes.isEmpty()) {

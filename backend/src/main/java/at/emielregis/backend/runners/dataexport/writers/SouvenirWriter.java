@@ -33,7 +33,7 @@ public class SouvenirWriter extends AbstractDataWriter {
             String[] currentRow = new String[3];
             currentRow[0] = set.getName();
             currentRow[1] = "" + itemService.getTotalAmountOfContainersForSet(set);
-            currentRow[2] = "" + itemService.getTotalAmountForSetNoContainers(set);
+            currentRow[2] = "" + itemService.getTotalAmountOfNonContainersForSet(set);
             overviewLines.add(currentRow);
         }
 

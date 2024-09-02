@@ -53,6 +53,10 @@ public class CSGOInventoryMapper {
                     LOGGER.error("429 - Too many requests");
                     busyWaitingService.wait(240);
                     return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
+                } else if (e.getRawStatusCode() == 401) {
+                    LOGGER.error("401 - Unauthorized, maybe the proxy does not have permission?");
+                    busyWaitingService.wait(60);
+                    return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
                 }
             } else { // this generally only happens if the internet is down or the proxy rejects the request
                 LOGGER.error(ex.getMessage());
@@ -78,6 +82,10 @@ public class CSGOInventoryMapper {
                         LOGGER.error("429 - Too many requests");
                         busyWaitingService.wait(240);
                         return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
+                    } else if (e.getRawStatusCode() == 401) {
+                        LOGGER.error("401 - Unauthorized, maybe the proxy does not have permission?");
+                        busyWaitingService.wait(60);
+                        return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
                     }
                 } else { // this generally only happens if the internet is down or the proxy rejects the request
                     LOGGER.error(ex.getMessage());
@@ -103,6 +111,10 @@ public class CSGOInventoryMapper {
                             LOGGER.error("429 - Too many requests");
                             busyWaitingService.wait(240);
                             return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
+                        } else if (e.getRawStatusCode() == 401) {
+                            LOGGER.error("401 - Unauthorized, maybe the proxy does not have permission?");
+                            busyWaitingService.wait(60);
+                            return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
                         }
                     } else { // this generally only happens if the internet is down or the proxy rejects the request
                         LOGGER.error(ex.getMessage());

@@ -31,7 +31,7 @@ public class CaseWriter extends AbstractDataWriter {
             List<ItemName> allValidItemNames = itemNameService.getAllNamesForSet(set);
             for (ItemName name : allValidItemNames) {
                 if (name.getName().matches(".* Case ?[23]?")) {
-                    overviewLines.add(new String[]{name.getName(), "" + itemService.getTotalAmountOfContainersForSet(set), "" + itemService.getTotalAmountForSetNoContainers(set)});
+                    overviewLines.add(new String[]{name.getName(), "" + itemService.getTotalAmountOfContainersForSet(set), "" + itemService.getTotalAmountOfNonContainersForSet(set)});
                 }
             }
         });

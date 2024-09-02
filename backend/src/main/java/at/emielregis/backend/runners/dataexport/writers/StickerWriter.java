@@ -39,7 +39,7 @@ public class StickerWriter extends AbstractDataWriter {
             finalRows1.add(new String[]{
                 set.getName(),
                 "" + itemService.getTotalAmountOfContainersForSet(set),
-                "" + itemService.getTotalAmountForSetNoContainers(set),
+                "" + itemService.getTotalAmountOfNonContainersForSet(set),
                 "" + stickerService.countTotalManuallyAppliedForSet(set),
                 "" + stickerService.countTotalSouvenirAppliedForSet(set)});
         });

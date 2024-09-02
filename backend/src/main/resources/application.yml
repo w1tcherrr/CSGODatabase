@@ -16,7 +16,7 @@ user-properties:
   # maximum amount of ids to be selected per batch - will be selected SEPARATELY for each thread.
   max-ids-per-batch: 50
   # the minimum amount of unmapped steam ids to be kept as a buffer (should be bigger than max-ids-per-batch * amount-of-threads)
-  account-buffer-size: 50000
+  account-buffer-size: 100000
   # the amount of threads the application uses to map accounts
   amount-of-threads: 500
   # the amount of proxies the application uses - the proxies are spread evenly over the threads if the thread-number is
@@ -44,54 +44,3 @@ spring:
     # Allows to fetch lazy properties outside the original transaction. Although this sounds helpful, the property
     # is disabled since it breaks the principle of least astonishment and leads to bad performance.
     open-in-view: false
-
-security:
-  auth:
-    header: Authorization
-    prefix: "Bearer "
-    login-uri: /api/v1/authentication
-  jwt:
-    # Use http://www.allkeysgenerator.com/ to generate secrets
-    secret: ?E(H+MbQeThWmZq4t7w!z%C*F-J@NcRfUjXn2r5u8x/A?D(G+KbPdSgVkYp3s6v9
-    type: JWT
-    issuer: secure-backend
-    audience: secure-app
-    # 12 hours in milliseconds
-    expiration-time: 43200000
-
-management:
-  server:
-    port: 8091
-  endpoint:
-    shutdown:
-      enabled: true
-    metrics:
-      enabled: true
-    prometheus:
-      enabled: true
-    health:
-      probes:
-        enabled: true
-  endpoints:
-    web:
-      exposure:
-        include:
-          - health
-          - info
-          - shutdown
-          - metrics
-          - env
-  metrics:
-    export:
-      prometheus:
-        enabled: true
-
----
-spring:
-  config:
-    activate:
-      on-cloud-platform: kubernetes
-  lifecycle:
-    timeout-per-shutdown-phase: 30s
-server:
-  shutdown: graceful

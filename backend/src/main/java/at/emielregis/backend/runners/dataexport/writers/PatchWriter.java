@@ -32,7 +32,7 @@ public class PatchWriter extends AbstractDataWriter {
         AtomicInteger current = new AtomicInteger();
         for (ItemSet set : patchSets) {
             LOGGER.info("Currently mapping total amount of set " + current.incrementAndGet() + "/" + patchSets.size() + ": " + set.getName());
-            rows.add(new String[]{set.getName(), "" + itemService.getTotalAmountOfContainersForSet(set), "" + itemService.getTotalAmountForSetNoContainers(set)});
+            rows.add(new String[]{set.getName(), "" + itemService.getTotalAmountOfContainersForSet(set), "" + itemService.getTotalAmountOfNonContainersForSet(set)});
         }
 
         sortByNumericalColumn(rows, 1);
