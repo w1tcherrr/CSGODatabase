@@ -11,7 +11,8 @@ public record DataWriter(CombinedDataWriter combinedDataWriter,
                          PatchWriter patchWriter,
                          SouvenirWriter souvenirWriter,
                          StickerWriter stickerWriter,
-                         PriceWriter priceWriter) {
+                         PriceWriter priceWriter,
+                         GraffitiWriter graffitiWriter) {
     public void write() {
         miscellaneousWriter.writeWorkbook("Miscellaneous_Data.xlsx");
         priceWriter.writeWorkbook("Price_Analysis.xlsx");
@@ -21,5 +22,6 @@ public record DataWriter(CombinedDataWriter combinedDataWriter,
         patchWriter.writeWorkbook("Patch_Collections.xlsx");
         souvenirWriter.writeWorkbook("Souvenir_Collections.xlsx");
         stickerWriter.writeWorkbook("Sticker_Collections.xlsx");
+        graffitiWriter.writeWorkbook("Graffiti_Collections.xlsx");
     }
 }

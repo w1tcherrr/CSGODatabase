@@ -86,6 +86,11 @@ public class ItemSetService {
         return searchByEquality(readFile("patch_collections.txt"));
     }
 
+    public List<ItemSet> getAllGraffitiCollections() {
+        LOGGER.info("ItemSetService#getAllGraffitiCollections()");
+        return searchByEquality(readFile("graffiti_collections.txt"));
+    }
+
     public List<Exterior> getExteriorsForItemSet(ItemSet set) {
         LOGGER.info("ItemSetService#getExteriorsForItemSet(" + set.toString() + ")");
         return itemSetRepository.getExteriorsForSet(set);
