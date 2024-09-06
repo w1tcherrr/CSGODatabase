@@ -165,26 +165,22 @@ public class HttpInventoryResponse {
                     case "classid" -> atomicClassId.set((String) value);
                     case "instanceid" -> atomicInstanceId.set((String) value);
                     case "type" -> atomicCategory.set((String) value);
-                    case "fraudwarnings" -> {
-                        String nameTag = ((List<String>) value).get(0);
-                        atomicNameTag.set(nameTag.substring(12, nameTag.length() - 2));
-                    }
                     case "market_hash_name" -> atomicMarketHashName.set((String) value);
                     case "descriptions" -> {
                         List<Map<String, Object>> maps = (List<Map<String, Object>>) value;
                         maps.forEach(map1 -> map1.forEach((key1, value1) -> {
                             if (key1.equals("value")) {
-                                String value2 = (String) value1;
-                                if (value2.contains("sticker_info")) {
-                                    int amountOfStickers = value2.split("<img").length - 1;
+                                String valueString = (String) value1;
+                                if (valueString.contains("sticker_info")) {
+                                    int amountOfStickers = valueString.split("<img").length - 1;
 
                                     // the sticker data is only sent as html for displaying it so I have to manually
                                     // extract the sticker names from the html
                                     List<Sticker> stickers = new ArrayList<>();
-                                    if (value2.contains("<br>Sticker:")) {
-                                        value2 = value2.substring(value2.indexOf("<br>Sticker:")).substring(12);
-                                        value2 = value2.substring(0, value2.indexOf("</center>"));
-                                        String[] split = value2.split(",");
+                                    if (valueString.contains("<br>Sticker:")) {
+                                        valueString = valueString.substring(valueString.indexOf("<br>Sticker:")).substring(12);
+                                        valueString = valueString.substring(0, valueString.indexOf("</center>"));
+                                        String[] split = valueString.split(",");
                                         for (int i = 0; i < split.length; i++) {
                                             String stickerName = split[i];
                                             stickerName = stickerName.trim().replaceAll(" {2,}", " "); // some stickers return doubled spaces for no reason
@@ -235,6 +231,8 @@ public class HttpInventoryResponse {
 
                                         atomicStickers.set(stickers);
                                     }
+                                } else if (valueString.startsWith("Name Tag: ''")) {
+                                    atomicNameTag.set(valueString.substring(12, valueString.length() - 2));
                                 }
                             }
                         }));

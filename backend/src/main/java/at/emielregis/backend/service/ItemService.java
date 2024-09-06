@@ -9,9 +9,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import javax.persistence.EntityManager;
 import java.lang.invoke.MethodHandles;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -21,18 +21,15 @@ public class ItemService {
 
     private final ItemRepository itemRepository;
     private final Mapper mapper;
-    private final EntityManager entityManager;
     private final ItemCategoryService itemCategoryService;
     private final ItemTypeService itemTypeService;
 
     public ItemService(ItemRepository itemRepository,
                        ItemCategoryService itemCategoryService,
                        Mapper mapper,
-                       EntityManager entityManager,
                        ItemTypeService itemTypeService) {
         this.itemRepository = itemRepository;
         this.mapper = mapper;
-        this.entityManager = entityManager;
         this.itemCategoryService = itemCategoryService;
         this.itemTypeService = itemTypeService;
     }
@@ -173,5 +170,17 @@ public class ItemService {
 
     public int getTotalAmountForType(ItemType type) {
         return itemRepository.getTotalAmountForType(type);
+    }
+
+    public Map<String, Integer> getNameTagMap() {
+        LOGGER.info("ItemService#getNameTagMap()");
+
+        List<Object[]> nameTagCounts = itemRepository.getNameTagCounts();
+
+        return nameTagCounts.stream()
+            .collect(Collectors.toMap(
+                row -> (String) row[0],
+                row -> ((Long) row[1]).intValue()
+            ));
     }
 }

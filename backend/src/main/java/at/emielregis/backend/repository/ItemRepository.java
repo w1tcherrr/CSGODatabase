@@ -13,11 +13,6 @@ import java.util.Set;
 public interface ItemRepository extends JpaRepository<ItemCollection, Long> {
 
     @Query(
-        "SELECT count(distinct i.id) from CSGOInventory inv join inv.itemCollections i"
-    )
-    long normalItemCount();
-
-    @Query(
         "SELECT sum(i.amount) from ItemCollection i"
     )
     long countTotalItems();
@@ -42,4 +37,8 @@ public interface ItemRepository extends JpaRepository<ItemCollection, Long> {
         "Select sum(i.amount) from ItemCollection i where i.itemType = :type"
     )
     int getTotalAmountForType(@Param("type") ItemType type);
+
+    @Query("SELECT i.nameTag, SUM(i.amount) FROM ItemCollection i WHERE i.nameTag IS NOT NULL GROUP BY i.nameTag")
+    List<Object[]> getNameTagCounts();
+
 }

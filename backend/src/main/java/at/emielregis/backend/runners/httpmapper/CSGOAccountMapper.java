@@ -106,6 +106,10 @@ public class CSGOAccountMapper {
             return;
         }
 
+        if (alreadyMappedAccounts >= MAX_CSGO_ACCOUNTS) {
+            return;
+        }
+
         proxyService.addEmptyThread(() -> {
             while (!stop || !accountsToPersist.isEmpty()) {
 
