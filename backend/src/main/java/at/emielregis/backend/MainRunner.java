@@ -35,8 +35,8 @@ public class MainRunner implements ApplicationContextAware {
      */
     @EventListener(ApplicationReadyEvent.class)
     public void run() {
-        //timingService.time(csgoAccountMapper::start, "Total mapping time in seconds: {}");
-        //itemPriceMapper.start();
+        timingService.time(csgoAccountMapper::start, "Total mapping time in seconds: {}");
+        itemPriceMapper.start();
         dataWriter.write();
         exit();
     }
