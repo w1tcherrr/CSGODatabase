@@ -11,8 +11,8 @@ import java.util.Map;
 @Component
 public class NameTagWriter extends AbstractDataWriter {
 
-    public NameTagWriter(ItemService itemService, SteamAccountService steamAccountService, ItemTypeService itemTypeService, CSGOAccountService csgoAccountService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService) {
-        super(itemService, steamAccountService, csgoAccountService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
+    public NameTagWriter(ItemService itemService, SteamAccountService steamAccountService, ItemTypeService itemTypeService, CSGOAccountService csgoAccountService, CharmService charmService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService) {
+        super(itemService, steamAccountService, csgoAccountService, charmService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
     }
 
     @Override

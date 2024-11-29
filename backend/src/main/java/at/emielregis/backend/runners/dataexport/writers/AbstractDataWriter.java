@@ -30,17 +30,19 @@ public abstract class AbstractDataWriter {
     protected final SteamAccountService steamAccountService;
     protected final CSGOAccountService csgoAccountService;
     protected final StickerService stickerService;
+    protected final CharmService charmService;
     protected final ItemSetService itemSetService;
     protected final ItemNameService itemNameService;
     protected final ItemCategoryService itemCategoryService;
     protected final ItemTypeService itemTypeService;
 
-    public AbstractDataWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService,
+    public AbstractDataWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, CharmService charmService,
                               StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService, ItemTypeService itemTypeService) {
         this.itemService = itemService;
         this.steamAccountService = steamAccountService;
         this.csgoAccountService = csgoAccountService;
         this.stickerService = stickerService;
+        this.charmService = charmService;
         this.itemSetService = itemSetService;
         this.itemNameService = itemNameService;
         this.itemCategoryService = itemCategoryService;

@@ -21,8 +21,8 @@ public class MajorWriter extends AbstractDataWriter {
 
     private final ResourceLoader resourceLoader;
 
-    public MajorWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, ItemTypeService itemTypeService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService, ResourceLoader resourceLoader) {
-        super(itemService, steamAccountService, csgoAccountService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
+    public MajorWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, CharmService charmService, ItemTypeService itemTypeService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService, ResourceLoader resourceLoader) {
+        super(itemService, steamAccountService, csgoAccountService, charmService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
         this.resourceLoader = resourceLoader;
     }
 

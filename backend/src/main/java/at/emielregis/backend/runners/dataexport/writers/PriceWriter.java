@@ -18,8 +18,8 @@ public class PriceWriter extends AbstractDataWriter {
 
     private final ItemPriceMapper itemPriceMapper;
 
-    public PriceWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService, ItemTypeService itemTypeService, ItemPriceMapper itemPriceMapper) {
-        super(itemService, steamAccountService, csgoAccountService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
+    public PriceWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, StickerService stickerService, CharmService charmService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService, ItemTypeService itemTypeService, ItemPriceMapper itemPriceMapper) {
+        super(itemService, steamAccountService, csgoAccountService, charmService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
         this.itemPriceMapper = itemPriceMapper;
     }
 

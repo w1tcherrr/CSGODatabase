@@ -50,7 +50,7 @@ public class ItemService {
     }
 
     public long countTotalItems() {
-        LOGGER.info("ItemService#countItemsNoStorageUnits()");
+        LOGGER.info("ItemService#countTotalItems()");
         return itemRepository.countTotalItems();
     }
 

@@ -7,6 +7,9 @@ import javax.persistence.*;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Represents a collection of items, including item type, stickers, and charm.
+ */
 @Entity
 @Getter
 @Setter
@@ -31,6 +34,9 @@ public class ItemCollection {
     @ManyToMany
     private List<Sticker> stickers;
 
+    @ManyToOne
+    private Charm charm;
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -44,9 +50,16 @@ public class ItemCollection {
         return getClass().hashCode();
     }
 
+    /**
+     * Deeply compares this ItemCollection with another, including stickers, name tag, charm, and item type.
+     *
+     * @param item The ItemCollection to compare with.
+     * @return true if all properties are equal, false otherwise.
+     */
     public boolean deepEquals(ItemCollection item) {
         return compareStickers(item)
             && Objects.equals(this.nameTag, item.getNameTag())
+            && compareCharm(item)
             && this.getItemType().deepEquals(item.getItemType());
     }
 
@@ -64,7 +77,17 @@ public class ItemCollection {
             }
             return true;
         } else {
-            return this.stickers == null ? item.stickers.isEmpty() : this.stickers.isEmpty();
+            return this.stickers == null ? item.getStickers().isEmpty() : this.stickers.isEmpty();
+        }
+    }
+
+    private boolean compareCharm(ItemCollection item) {
+        if (this.charm == null && item.getCharm() == null) {
+            return true;
+        } else if (this.charm != null && item.getCharm() != null) {
+            return this.charm.deepEquals(item.getCharm());
+        } else {
+            return false;
         }
     }
 }

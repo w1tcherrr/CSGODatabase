@@ -21,8 +21,8 @@ public class GraffitiWriter extends AbstractDataWriter {
 
     private final ResourceLoader resourceLoader;
 
-    public GraffitiWriter(ItemService itemService, SteamAccountService steamAccountService, ItemTypeService itemTypeService, CSGOAccountService csgoAccountService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService, ResourceLoader resourceLoader) {
-        super(itemService, steamAccountService, csgoAccountService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
+    public GraffitiWriter(ItemService itemService, SteamAccountService steamAccountService, ItemTypeService itemTypeService, CharmService charmService, CSGOAccountService csgoAccountService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService, ResourceLoader resourceLoader) {
+        super(itemService, steamAccountService, csgoAccountService, charmService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
         this.resourceLoader = resourceLoader;
     }
 

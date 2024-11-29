@@ -16,8 +16,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component
 public class StickerWriter extends AbstractDataWriter {
 
-    public StickerWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, StickerService stickerService, ItemTypeService itemTypeService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService) {
-        super(itemService, steamAccountService, csgoAccountService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
+    public StickerWriter(ItemService itemService, SteamAccountService steamAccountService, CharmService charmService, CSGOAccountService csgoAccountService, StickerService stickerService, ItemTypeService itemTypeService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService) {
+        super(itemService, steamAccountService, csgoAccountService, charmService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
     }
 
     @Override

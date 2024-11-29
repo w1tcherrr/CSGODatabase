@@ -8,8 +8,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class MiscellaneousDataWriter extends AbstractDataWriter {
 
-    public MiscellaneousDataWriter(ItemService itemService, SteamAccountService steamAccountService, ItemTypeService itemTypeService, CSGOAccountService csgoAccountService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService) {
-        super(itemService, steamAccountService, csgoAccountService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
+    public MiscellaneousDataWriter(ItemService itemService, SteamAccountService steamAccountService, ItemTypeService itemTypeService, CharmService charmService, CSGOAccountService csgoAccountService, StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService) {
+        super(itemService, steamAccountService, csgoAccountService, charmService, stickerService, itemSetService, itemNameService, itemCategoryService, itemTypeService);
     }
 
     @Override

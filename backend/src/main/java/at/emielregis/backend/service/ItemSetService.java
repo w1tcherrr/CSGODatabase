@@ -91,6 +91,11 @@ public class ItemSetService {
         return searchByEquality(readFile("graffiti_collections.txt"));
     }
 
+    public List<ItemSet> getAllCharmCollections() {
+        LOGGER.info("ItemSetService#getAllCharmCollections()");
+        return searchByEquality(readFile("charm_collections.txt"));
+    }
+
     public List<Exterior> getExteriorsForItemSet(ItemSet set) {
         LOGGER.info("ItemSetService#getExteriorsForItemSet(" + set.toString() + ")");
         return itemSetRepository.getExteriorsForSet(set);
