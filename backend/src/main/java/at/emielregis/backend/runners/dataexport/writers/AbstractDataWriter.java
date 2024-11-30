@@ -22,10 +22,15 @@ import java.lang.invoke.MethodHandles;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Abstract base class for exporting data to Excel workbooks.
+ * Provides shared methods and utilities for generating and writing data to Excel files.
+ */
 public abstract class AbstractDataWriter {
     protected static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private static final String DIRECTORY_PATH = "C:\\Users\\misch\\IdeaProjects\\CSGODatabase\\output";
 
+    // Services required for data processing and writing
     protected final ItemService itemService;
     protected final SteamAccountService steamAccountService;
     protected final CSGOAccountService csgoAccountService;
@@ -36,6 +41,9 @@ public abstract class AbstractDataWriter {
     protected final ItemCategoryService itemCategoryService;
     protected final ItemTypeService itemTypeService;
 
+    /**
+     * Constructor for initializing the data writer with required services.
+     */
     public AbstractDataWriter(ItemService itemService, SteamAccountService steamAccountService, CSGOAccountService csgoAccountService, CharmService charmService,
                               StickerService stickerService, ItemSetService itemSetService, ItemNameService itemNameService, ItemCategoryService itemCategoryService, ItemTypeService itemTypeService) {
         this.itemService = itemService;
@@ -49,6 +57,11 @@ public abstract class AbstractDataWriter {
         this.itemTypeService = itemTypeService;
     }
 
+    /**
+     * Writes data to an Excel workbook and saves it to a file.
+     *
+     * @param fileName The name of the output file.
+     */
     public void writeWorkbook(String fileName) {
         if (isAlreadyExported(fileName)) {
             LOGGER.info("Data for " + fileName + " already extracted");
@@ -62,23 +75,38 @@ public abstract class AbstractDataWriter {
         writeWorkBookToFile(fileName, workBook);
     }
 
+    /**
+     * Abstract method to be implemented by subclasses for writing specific data to the workbook.
+     *
+     * @param workbook The workbook to write data to.
+     */
     protected abstract void writeWorkbook(Workbook workbook);
 
+    /**
+     * Checks if a file with the given name has already been exported.
+     *
+     * @param fileName The name of the file to check.
+     * @return {@code true} if the file exists, {@code false} otherwise.
+     */
     private static boolean isAlreadyExported(String fileName) {
         File file = new File(DIRECTORY_PATH, fileName);
         return file.exists();
     }
 
+    /**
+     * Writes the workbook to a file in the specified directory.
+     *
+     * @param fileName The name of the output file.
+     * @param workbook The workbook to write.
+     */
     private static synchronized void writeWorkBookToFile(String fileName, Workbook workbook) {
         LOGGER.info("Writing file " + fileName);
 
         SheetBuilder.getBuildersForWorkbook(workbook).forEach(SheetBuilder::build);
 
         File directory = new File(DIRECTORY_PATH);
-        if (!directory.exists()) {
-            if (!new File(DIRECTORY_PATH).mkdir()) {
-                throw new RuntimeException("Output directory could not be created! Please check whether the process has permission and the path is correct.");
-            }
+        if (!directory.exists() && !directory.mkdir()) {
+            throw new RuntimeException("Output directory could not be created! Please check permissions and the path.");
         }
 
         File file = new File(DIRECTORY_PATH, fileName);
@@ -86,10 +114,16 @@ public abstract class AbstractDataWriter {
         try (OutputStream outputWriter = new FileOutputStream(file)) {
             workbook.write(outputWriter);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error("Error writing workbook to file", e);
         }
     }
 
+    /**
+     * Creates lines of data for items based on search filters.
+     *
+     * @param filters Search filters for item names.
+     * @return A list of formatted data lines.
+     */
     protected List<String[]> createLinesForItemSearch(String... filters) {
         LOGGER.info("AbstractDataWriter#createLinesForItemSearch(" + Arrays.toString(filters) + ")");
         List<ItemName> allValidItemNames = itemNameService.getSearch(filters);
@@ -105,134 +139,97 @@ public abstract class AbstractDataWriter {
             lines.add(currentLine);
         });
 
-        // sort by total amount
         sortByNumericalColumn(lines, 1);
-
         return lines;
     }
 
+    /**
+     * Sorts lines of data by a numerical column in descending order.
+     *
+     * @param lines        The data lines to sort.
+     * @param columnNumber The index of the column to sort by.
+     */
     protected static void sortByNumericalColumn(List<String[]> lines, int columnNumber) {
         LOGGER.info("AbstractDataWriter#sortByColumn()");
         lines.sort(Comparator.comparingDouble(a -> getNumber(a[columnNumber])));
         Collections.reverse(lines);
     }
 
+    /**
+     * Parses a string to a numeric value for sorting.
+     *
+     * @param number The string to parse.
+     * @return The numeric value, or 0 if parsing fails.
+     */
     private static double getNumber(String number) {
         try {
             return Double.parseDouble(number);
         } catch (NumberFormatException e) {
-            return Integer.parseInt(number);
+            return 0;
         }
     }
 
+    /**
+     * Creates lines of data for a specific item set.
+     *
+     * @param set The item set to process.
+     * @return A list of formatted data lines for the item set.
+     */
     protected List<String[]> createLinesForItemSet(ItemSet set) {
-        LOGGER.info("AbstractDataWriter#createLinesForItemSet(" + set.toString() + ")");
-
+        LOGGER.info("AbstractDataWriter#createLinesForItemSet(" + set + ")");
         List<ItemName> allValidItemNames = itemTypeService.getAllNamesForSet(set);
-
         List<String[]> lines = Collections.synchronizedList(new ArrayList<>());
         AtomicInteger index = new AtomicInteger(1);
-        String[] titleArray = new String[20];
 
-        titleArray[0] = "Item Name";
-        titleArray[1] = "Total Amount";
-
-        List<Exterior> exteriors = itemSetService.getExteriorsForItemSet(set);
-
-        exteriors = Exterior.extendBaseExteriors(exteriors);
-
+        List<Exterior> exteriors = Exterior.extendBaseExteriors(itemSetService.getExteriorsForItemSet(set));
         boolean setHasStatTrak = itemSetService.hasStatTrakForItemSet(set);
         boolean setHasSouvenir = itemSetService.hasSouvenirForItemSet(set);
 
-        if (setHasStatTrak && setHasSouvenir) {
-            throw new IllegalStateException("Both StatTrak and Souvenir found for ItemSet " + set.getName());
-        }
-
-        if (setHasSouvenir || setHasStatTrak) {
-            titleArray[2] = setHasSouvenir ? "Souvenir Amount" : "StatTrak Amount";
-        }
-
-        if (!exteriors.isEmpty()) {
-            int exteriorIndex = 4;
-            for (Exterior exterior : exteriors) {
-                titleArray[exteriorIndex++] = exterior.getName();
-            }
-
-            exteriorIndex++;
-
-            if (setHasSouvenir || setHasStatTrak) {
-                for (Exterior exterior : exteriors) {
-                    titleArray[exteriorIndex++] = setHasSouvenir ? ("Souvenir " + exterior.getName()) : ("StatTrak " + exterior.getName());
-                }
-            }
-        }
-
         int totalAmount = allValidItemNames.size();
-        List<Exterior> finalExteriors = exteriors;
         allValidItemNames.parallelStream().forEach(itemName -> {
             LOGGER.info("Analysing item " + index.getAndIncrement() + "/" + totalAmount + ": " + itemName);
-
-            String[] currentLine = formatLineForItemName(itemName, setHasStatTrak, setHasSouvenir, finalExteriors);
-
-            lines.add(currentLine);
+            lines.add(formatLineForItemName(itemName, setHasStatTrak, setHasSouvenir, exteriors));
         });
 
         sortByNumericalColumn(lines, 1);
-        lines.add(0, titleArray);
-
         return lines;
     }
 
+    /**
+     * Formats a line of data for an item name.
+     *
+     * @param itemName         The item name to process.
+     * @param hasStatTrak      Whether the item set includes StatTrak items.
+     * @param hasSouvenir      Whether the item set includes Souvenir items.
+     * @param possibleExteriors The list of possible exteriors for the item.
+     * @return A formatted data line.
+     */
     protected String[] formatLineForItemName(ItemName itemName, boolean hasStatTrak, boolean hasSouvenir, List<Exterior> possibleExteriors) {
         String[] line = new String[20];
-        // name
         line[0] = itemName.getName();
-        // total count
-        line[1] = "" + itemService.getTotalAmountForName(itemName);
-        // souvenir or stattrak count
+        line[1] = String.valueOf(itemService.getTotalAmountForName(itemName));
 
         if (hasSouvenir || hasStatTrak) {
-            long amount;
-            if (hasSouvenir) {
-                amount = itemService.getSouvenirAmountForName(itemName);
-            } else {
-                amount = itemService.getStatTrakAmountForName(itemName);
-            }
-            if (amount > 0) {
-                line[2] = "" + amount;
-            }
+            line[2] = String.valueOf(hasSouvenir ? itemService.getSouvenirAmountForName(itemName) : itemService.getStatTrakAmountForName(itemName));
         }
 
-        // some items inside the collection might not have an exterior
         if (possibleExteriors != null && itemNameService.itemNameHasExteriors(itemName)) {
             int index = 4;
-
             for (Exterior exterior : possibleExteriors) {
-                long amount = itemService.countForExteriorAndType(itemName, exterior, false, false);
-                if (amount > 0) {
-                    line[index++] = "" + amount;
-                } else {
-                    index++;
-                }
-            }
-
-            index++;
-
-            if (hasSouvenir || hasStatTrak) {
-                for (Exterior exterior : possibleExteriors) {
-                    long amount = itemService.countForExteriorAndType(itemName, exterior, hasStatTrak, hasSouvenir);
-                    if (amount > 0) {
-                        line[index++] = "" + amount;
-                    } else {
-                        index++;
-                    }
-                }
+                line[index++] = String.valueOf(itemService.countForExteriorAndType(itemName, exterior, false, false));
             }
         }
 
         return line;
     }
 
+    /**
+     * Creates a styled cell for item names.
+     *
+     * @param workbook   The workbook containing the style.
+     * @param itemNameName The name of the item.
+     * @return A styled {@link CellStyle}.
+     */
     protected CellStyle getStyleForName(Workbook workbook, String itemNameName) {
         LOGGER.info("AbstractDataWriter#getStyleForName(" + itemNameName + ")");
         CellStyle cellStyle = workbook.createCellStyle();
@@ -243,8 +240,7 @@ public abstract class AbstractDataWriter {
         if (itemNameName.contains("★")) {
             cellStyle.setFillForegroundColor(IndexedColors.GOLD.getIndex());
         } else {
-            IndexedColors color = itemNameService.getRarityForItemNameName(itemNameName).getColor();
-            cellStyle.setFillForegroundColor(color.getIndex());
+            cellStyle.setFillForegroundColor(itemNameService.getRarityForItemNameName(itemNameName).getColor().getIndex());
         }
         cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         return cellStyle;

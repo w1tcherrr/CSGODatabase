@@ -6,6 +6,9 @@ import org.hibernate.Hibernate;
 import javax.persistence.*;
 import java.util.Objects;
 
+/**
+ * Represents an ItemSet with a unique name (e.g. "The Bravo Collection").
+ */
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor

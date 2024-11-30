@@ -7,6 +7,9 @@ import org.hibernate.Hibernate;
 import javax.persistence.*;
 import java.util.Objects;
 
+/**
+ * Represents an applied sticker. Non-applied stickers are normal {@link ItemCollection}s.
+ */
 @Getter
 @Setter
 @Builder

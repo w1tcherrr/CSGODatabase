@@ -6,6 +6,9 @@ import org.hibernate.Hibernate;
 import javax.persistence.*;
 import java.util.Objects;
 
+/**
+ * Represents the name of an item (e.g. "M4A1-S | Knight")
+ */
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor

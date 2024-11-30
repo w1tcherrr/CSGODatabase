@@ -9,6 +9,9 @@ import javax.persistence.*;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Represents the inventory of a CS:GO account, containing a collection of items.
+ */
 @Entity
 @Getter
 @Setter

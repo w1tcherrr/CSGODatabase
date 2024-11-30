@@ -6,6 +6,9 @@ import org.hibernate.Hibernate;
 import javax.persistence.*;
 import java.util.Objects;
 
+/**
+ * Represents a CS:GO account with a unique identifier (id64) and an associated inventory.
+ */
 @Entity
 @Getter
 @Setter

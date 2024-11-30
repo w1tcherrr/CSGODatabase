@@ -6,6 +6,9 @@ import org.hibernate.Hibernate;
 import javax.persistence.*;
 import java.util.Objects;
 
+/**
+ * Represents an item category (e.g. "Base Grade Container").
+ */
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor

@@ -7,7 +7,7 @@ import javax.persistence.*;
 import java.util.Objects;
 
 /**
- * Represents a Charm entity with a unique name.
+ * Represents an applied charm. Non-applied charms are normal {@link ItemCollection}s.
  */
 @Getter
 @Setter

@@ -7,6 +7,10 @@ import javax.persistence.*;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Represents a persistent data store for maintaining application state,
+ * including Steam groups and their associated data.
+ */
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
@@ -35,3 +39,4 @@ public class PersistentDataStore {
         return getClass().hashCode();
     }
 }
+

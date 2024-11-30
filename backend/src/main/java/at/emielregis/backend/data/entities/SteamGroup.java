@@ -7,6 +7,9 @@ import javax.persistence.*;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Represents a Steam group with its name, mapped pages, and lock status.
+ */
 @Entity
 @Builder
 @NoArgsConstructor
@@ -36,3 +39,4 @@ public class SteamGroup {
         return Objects.equals(name, that.name);
     }
 }
+

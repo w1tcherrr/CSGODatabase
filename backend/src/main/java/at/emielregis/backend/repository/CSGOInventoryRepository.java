@@ -8,25 +8,34 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Set;
 
+/**
+ * Repository interface for {@link CSGOInventory} entities.
+ * Provides methods for managing and querying CSGO inventories.
+ */
 public interface CSGOInventoryRepository extends JpaRepository<CSGOInventory, Long> {
-    @Query(
-        "select inv.id from CSGOAccount acc join acc.csgoInventory inv"
-    )
+
+    /**
+     * Retrieves the IDs of all normal inventories linked to CSGO accounts.
+     *
+     * @return A set of IDs for normal CSGO inventories.
+     */
+    @Query("SELECT inv.id FROM CSGOAccount acc JOIN acc.csgoInventory inv")
     Set<Long> getNormalInvIDs();
 
-    @Query(
-        "select count(inv) from CSGOAccount acc join acc.csgoInventory inv"
-    )
-    long normalInventoryCount();
-
-    @Query(
-        "select inv.id from CSGOInventory inv"
-    )
+    /**
+     * Retrieves the IDs of all CSGO inventories in the database.
+     *
+     * @return A set of all CSGO inventory IDs.
+     */
+    @Query("SELECT inv.id FROM CSGOInventory inv")
     Set<Long> getAllInvIDs();
 
+    /**
+     * Deletes a CSGO inventory by its ID.
+     *
+     * @param id The ID of the inventory to delete.
+     */
     @Modifying
-    @Query(
-        "delete from CSGOInventory i where i.id = :id"
-    )
+    @Query("DELETE FROM CSGOInventory i WHERE i.id = :id")
     void deleteById(@Param("id") Long id);
 }

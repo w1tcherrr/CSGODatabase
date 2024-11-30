@@ -6,6 +6,9 @@ import org.hibernate.Hibernate;
 import javax.persistence.*;
 import java.util.Objects;
 
+/**
+ * Represents a Steam account with a unique identifier (id64).
+ */
 @Entity
 @Builder
 @NoArgsConstructor
@@ -34,3 +37,4 @@ public class SteamAccount {
         return getClass().hashCode();
     }
 }
+

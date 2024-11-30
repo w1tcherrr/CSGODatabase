@@ -48,7 +48,7 @@ public class ItemTypeService {
      * @return A list of {@link ItemType} entities associated with the item set.
      */
     public List<ItemType> getAllTypesForSet(ItemSet set) {
-        LOGGER.info("ItemTypeService#getAllTypesForSet({})", set);
+        LOGGER.info("ItemTypeService#getAllTypesForSet({})", set.getName());
         return itemTypeRepository.getAllTypesForSet(set);
     }
 
@@ -59,7 +59,7 @@ public class ItemTypeService {
      * @return A list of {@link ItemName} entities associated with the item set.
      */
     public List<ItemName> getAllNamesForSet(ItemSet set) {
-        LOGGER.info("ItemTypeService#getAllNamesForSet({})", set);
+        LOGGER.info("ItemTypeService#getAllNamesForSet({})", set.getName());
         return itemTypeRepository.getAllNamesForSet(set);
     }
 
@@ -72,7 +72,7 @@ public class ItemTypeService {
      * @return A list of matching {@link ItemType} entities.
      */
     public List<ItemType> getTypeForItemNameAndParams(ItemName itemName, Exterior exterior, SpecialItemType specialItemType) {
-        LOGGER.info("ItemTypeService#getTypeForItemNameAndParams({}, {}, {})", itemName, exterior, specialItemType);
+        LOGGER.info("ItemTypeService#getTypeForItemNameAndParams({}, {}, {})", itemName.getName(), exterior, specialItemType);
         return itemTypeRepository.getTypeForItemNameAndParams(itemName, exterior, specialItemType);
     }
 
@@ -87,11 +87,22 @@ public class ItemTypeService {
         return itemTypeRepository.getAllTypesForNames(search);
     }
 
+    /**
+     * Retrieves charm item names associated with a specific item set.
+     *
+     * @param set The {@link ItemSet} to filter by.
+     * @return A list of charm {@link ItemName} entities associated with the item set.
+     */
     public List<ItemName> getCharmItemNamesBySet(ItemSet set) {
         LOGGER.info("ItemTypeService#getCharmItemNamesBySet({})", set.getName());
         return itemTypeRepository.getCharmItemNamesBySet(set);
     }
 
+    /**
+     * Retrieves a list of unclassified charm item names.
+     *
+     * @return A list of unclassified charm {@link ItemName} entities.
+     */
     public List<ItemName> getUnclassifiedCharmItemNames() {
         LOGGER.info("ItemTypeService#getUnclassifiedCharmItemNames()");
         return itemTypeRepository.getUnclassifiedCharmItemNames();

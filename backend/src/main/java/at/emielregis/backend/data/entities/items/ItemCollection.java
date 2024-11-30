@@ -8,7 +8,10 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Represents a collection of items, including item type, stickers, and charm.
+ * Represents a collection of equal items, including amount, item type, stickers, name-tag and charm.
+ * Since e.g. all Breakout Cases are the exact same all of them in a single inventory are stored in a single {@link ItemCollection}
+ * with the amount in the inventory instead of unique items with amount 0. If there is any difference between items a new
+ * {@link ItemCollection} is created.
  */
 @Entity
 @Getter

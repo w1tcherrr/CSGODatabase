@@ -16,6 +16,10 @@ import java.lang.invoke.MethodHandles;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Service class for managing {@link ItemSet} entities.
+ * Provides methods to retrieve and analyze item sets and their properties.
+ */
 @Component
 public class ItemSetService {
 
@@ -28,6 +32,12 @@ public class ItemSetService {
         this.resourceLoader = resourceLoader;
     }
 
+    /**
+     * Reads data from a file in the `collections` folder.
+     *
+     * @param filename The name of the file to read.
+     * @return A list of strings from the file.
+     */
     private List<String> readFile(String filename) {
         Resource resource = resourceLoader.getResource("classpath:collections/" + filename);
         try (BufferedReader br = new BufferedReader(new InputStreamReader(resource.getInputStream()))) {
@@ -38,34 +48,46 @@ public class ItemSetService {
         }
     }
 
+    /**
+     * Searches for item sets with exact matches for the given terms.
+     *
+     * @param searchTerms List of search terms.
+     * @return List of matching {@link ItemSet}.
+     */
     private List<ItemSet> searchByEquality(List<String> searchTerms) {
-        List<ItemSet> sets = searchTerms.stream()
+        return searchTerms.stream()
             .map(itemSetRepository::getByName)
             .filter(Objects::nonNull)
-            .toList();
-        return sets.stream().distinct().sorted(Comparator.comparing(ItemSet::getName)).collect(Collectors.toList());
+            .distinct()
+            .sorted(Comparator.comparing(ItemSet::getName))
+            .collect(Collectors.toList());
     }
 
-    private List<ItemSet> searchBySubstring(List<String> searchTerms) {
-        List<ItemSet> sets = searchTerms.stream()
-            .flatMap(search -> itemSetRepository.search(search).stream())
-            .toList();
-        return sets.stream().distinct().sorted(Comparator.comparing(ItemSet::getName)).collect(Collectors.toList());
-    }
-
+    /**
+     * Retrieves all case collections.
+     *
+     * @return List of all case collections.
+     */
     public List<ItemSet> getAllCaseCollections() {
         LOGGER.info("ItemSetService#getAllCaseCollections()");
         return searchByEquality(readFile("case_collections.txt"));
     }
 
-    public List<ItemSet> getAllSouvenirCollections() {
-        LOGGER.info("ItemSetService#getAllSouvenirCollections()");
-        return searchBySubstring(readFile("souvenir_collections.txt"))
-            .stream()
-            .filter(col -> !col.getName().contains("2021 Train")) // this is not a souvenir collection and was in the riptide shop
-            .collect(Collectors.toList());
+    /**
+     * Retrieves all charm collections.
+     *
+     * @return List of all charm collections.
+     */
+    public List<ItemSet> getAllCharmCollections() {
+        LOGGER.info("ItemSetService#getAllCharmCollections()");
+        return searchByEquality(readFile("charm_collections.txt"));
     }
 
+    /**
+     * Retrieves all sticker collections.
+     *
+     * @return List of all sticker collections.
+     */
     public List<ItemSet> getAllStickerCollections() {
         LOGGER.info("ItemSetService#getAllStickerCollections()");
         List<ItemSet> majorStickerCollections = searchByEquality(readFile("major_sticker_collections.txt"));
@@ -81,36 +103,44 @@ public class ItemSetService {
             .collect(Collectors.toList());
     }
 
-    public List<ItemSet> getAllPatchCollections() {
-        LOGGER.info("ItemSetService#getAllPatchCollections()");
-        return searchByEquality(readFile("patch_collections.txt"));
-    }
-
-    public List<ItemSet> getAllGraffitiCollections() {
-        LOGGER.info("ItemSetService#getAllGraffitiCollections()");
-        return searchByEquality(readFile("graffiti_collections.txt"));
-    }
-
-    public List<ItemSet> getAllCharmCollections() {
-        LOGGER.info("ItemSetService#getAllCharmCollections()");
-        return searchByEquality(readFile("charm_collections.txt"));
-    }
-
+    /**
+     * Retrieves all exterior types for a specific item set.
+     *
+     * @param set The {@link ItemSet} to analyze.
+     * @return List of {@link Exterior}.
+     */
     public List<Exterior> getExteriorsForItemSet(ItemSet set) {
-        LOGGER.info("ItemSetService#getExteriorsForItemSet(" + set.toString() + ")");
+        LOGGER.info("ItemSetService#getExteriorsForItemSet(" + set + ")");
         return itemSetRepository.getExteriorsForSet(set);
     }
 
+    /**
+     * Determines if an item set has StatTrak items.
+     *
+     * @param set The {@link ItemSet} to analyze.
+     * @return True if the set has StatTrak items, false otherwise.
+     */
     public boolean hasStatTrakForItemSet(ItemSet set) {
-        LOGGER.info("ItemSetService#hasStatTrakForItemSet(" + set.toString() + ")");
+        LOGGER.info("ItemSetService#hasStatTrakForItemSet(" + set + ")");
         return itemSetRepository.hasStatTrakForItemSet(set);
     }
 
+    /**
+     * Determines if an item set has Souvenir items.
+     *
+     * @param set The {@link ItemSet} to analyze.
+     * @return True if the set has Souvenir items, false otherwise.
+     */
     public boolean hasSouvenirForItemSet(ItemSet set) {
-        LOGGER.info("ItemSetService#hasSouvenirForItemSet(" + set.toString() + ")");
+        LOGGER.info("ItemSetService#hasSouvenirForItemSet(" + set + ")");
         return itemSetRepository.hasSouvenirForItemSet(set);
     }
 
+    /**
+     * Counts all item sets in the repository.
+     *
+     * @return Total count of item sets.
+     */
     public long count() {
         LOGGER.info("ItemSetService#count()");
         return itemSetRepository.count();

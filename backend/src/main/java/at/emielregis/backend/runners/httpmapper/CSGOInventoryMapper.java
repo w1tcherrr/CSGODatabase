@@ -19,7 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * This class is used to map CSGO inventories by providing the id64 of a SteamAccount.
+ * Responsible for mapping CS:GO inventories for Steam accounts.
+ * Fetches and combines inventory items from the Steam API.
  */
 @Component
 @RequiredArgsConstructor
@@ -30,147 +31,131 @@ public class CSGOInventoryMapper {
     private final BusyWaitingService busyWaitingService;
 
     /**
-     * Stores the inventory of the Steam User with the id64 in the provided accountBuilder using the
-     * provided RestTemplate to send Http Calls.
+     * Fetches and maps the CS:GO inventory for a given Steam account.
+     * Uses a RestTemplate for HTTP requests to the Steam API.
      *
-     * @param accountBuilder The accountBuilder in which to store the inventory.
-     * @param id64           The player whose inventory to get.
-     * @param restTemplate   The restTemplate.
-     * @return The status of the request.
+     * @param accountBuilder The account builder for which the inventory is being fetched.
+     * @param id64           The SteamID64 of the account.
+     * @param restTemplate   The RestTemplate instance for HTTP calls.
+     * @return The status of the inventory fetch request.
      */
     public HttpResponseMappingStatus getInventory(CSGOAccount.CSGOAccountBuilder accountBuilder, String id64, RestTemplate restTemplate) {
-        LOGGER.info("Mapping inventory for user with id: {}", id64);
+        LOGGER.info("Fetching inventory for user with ID: {}", id64);
 
-        // get the first 500 items of the inventory
-        HttpInventoryResponse httpInventoryResponse;
+        HttpInventoryResponse initialResponse;
+
         try {
-            httpInventoryResponse = restTemplate.getForObject(urlProvider.getFirstInventoryRequestUri(id64), HttpInventoryResponse.class);
+            initialResponse = restTemplate.getForObject(urlProvider.getFirstInventoryRequestUri(id64), HttpInventoryResponse.class);
         } catch (Exception ex) {
-            if (ex instanceof RestClientResponseException e) {
-                if (e.getRawStatusCode() == 403) { // this is returned when the inventory (or the account) of the user is private
-                    return HttpResponseMappingStatus.SUCCESS;
-                } else if (e.getRawStatusCode() == 429) {
-                    LOGGER.error("429 - Too many requests");
-                    busyWaitingService.wait(240);
-                    return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
-                } else if (e.getRawStatusCode() == 401) {
-                    LOGGER.error("401 - Unauthorized, maybe the proxy does not have permission?");
-                    busyWaitingService.wait(60);
-                    return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
-                }
-            } else { // this generally only happens if the internet is down or the proxy rejects the request
-                LOGGER.error(ex.getMessage());
-                return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
-            }
+            return handleException(ex);
+        }
+
+        if (initialResponse == null || !initialResponse.successful()) {
             return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
         }
 
-        if (httpInventoryResponse == null || !httpInventoryResponse.successful()) {
-            return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
+        List<ItemCollection> itemList = initialResponse.getItemCollections();
+
+        // Fetch additional pages if inventory has more items
+        if (initialResponse.hasMoreItems()) {
+            itemList = fetchAdditionalPages(itemList, id64, initialResponse, restTemplate);
         }
 
-        List<ItemCollection> itemList = httpInventoryResponse.getItemCollections();
-
-        // if there are more than 500 items send a second request
-        if (httpInventoryResponse.hasMoreItems()) {
-            HttpInventoryResponse httpInventoryResponse1;
-            try {
-                httpInventoryResponse1 = restTemplate.getForObject(urlProvider.getInventoryRequestUriWithStart(id64, httpInventoryResponse.getLastAssetId()), HttpInventoryResponse.class);
-            } catch (Exception ex) {
-                if (ex instanceof RestClientResponseException e) {
-                    if (e.getRawStatusCode() == 429) {
-                        LOGGER.error("429 - Too many requests");
-                        busyWaitingService.wait(240);
-                        return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
-                    } else if (e.getRawStatusCode() == 401) {
-                        LOGGER.error("401 - Unauthorized, maybe the proxy does not have permission?");
-                        busyWaitingService.wait(60);
-                        return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
-                    }
-                } else { // this generally only happens if the internet is down or the proxy rejects the request
-                    LOGGER.error(ex.getMessage());
-                    return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
-                }
-                return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
-            }
-
-            if (httpInventoryResponse1 == null) {
-                return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
-            }
-
-            itemList = combineLists(itemList, httpInventoryResponse1);
-
-            // if there are more than 1000 items (this is extremely rare, since the limit is theoretically 1000 but can be exceeded by a few items)
-            if (httpInventoryResponse1.hasMoreItems()) {
-                HttpInventoryResponse httpInventoryResponse2;
-                try {
-                    httpInventoryResponse2 = restTemplate.getForObject(urlProvider.getInventoryRequestUriWithStart(id64, httpInventoryResponse1.getLastAssetId()), HttpInventoryResponse.class);
-                } catch (Exception ex) {
-                    if (ex instanceof RestClientResponseException e) {
-                        if (e.getRawStatusCode() == 429) {
-                            LOGGER.error("429 - Too many requests");
-                            busyWaitingService.wait(240);
-                            return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
-                        } else if (e.getRawStatusCode() == 401) {
-                            LOGGER.error("401 - Unauthorized, maybe the proxy does not have permission?");
-                            busyWaitingService.wait(60);
-                            return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
-                        }
-                    } else { // this generally only happens if the internet is down or the proxy rejects the request
-                        LOGGER.error(ex.getMessage());
-                        return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
-                    }
-                    return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
-                }
-
-                if (httpInventoryResponse2 == null) {
-                    return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
-                }
-
-                itemList = combineLists(itemList, httpInventoryResponse2);
-            }
-        }
-
-        // set the inventory into the builder
-        CSGOInventory.CSGOInventoryBuilder builder = CSGOInventory.builder().itemCollections(itemList);
-        CSGOInventory inventory = builder.build();
+        // Assign inventory to the account builder
+        CSGOInventory inventory = CSGOInventory.builder().itemCollections(itemList).build();
         accountBuilder.csgoInventory(inventory);
 
         return HttpResponseMappingStatus.SUCCESS;
     }
 
     /**
-     * Combines two lists of transient items into one list by combining equal items into one.
+     * Handles exceptions during HTTP requests.
      *
-     * @param transientItems         first list of items
-     * @param httpInventoryResponse1 the response containing the second list of items
-     * @return The combined list
+     * @param ex The exception to be handled.
+     * @return The corresponding {@link HttpResponseMappingStatus}.
      */
-    private List<ItemCollection> combineLists(List<ItemCollection> transientItems, HttpInventoryResponse httpInventoryResponse1) {
-        var returnList = new ArrayList<ItemCollection>();
-        for (ItemCollection item : httpInventoryResponse1.getItemCollections()) {
-            ItemCollection item1 = getByObject(transientItems, item);
-            if (item1 != null) {
-                item1.setAmount(item.getAmount() + item1.getAmount());
-                returnList.add(item1);
-            } else {
-                returnList.add(item);
+    private HttpResponseMappingStatus handleException(Exception ex) {
+        if (ex instanceof RestClientResponseException e) {
+            if (e.getRawStatusCode() == 403) {
+                // Inventory or account is private
+                return HttpResponseMappingStatus.SUCCESS;
+            } else if (e.getRawStatusCode() == 429) {
+                LOGGER.error("429 - Too many requests. Retrying after wait.");
+                busyWaitingService.wait(240);
+                return HttpResponseMappingStatus.TOO_MANY_REQUESTS;
+            } else if (e.getRawStatusCode() == 401) {
+                LOGGER.error("401 - Unauthorized. Proxy may not have access.");
+                busyWaitingService.wait(60);
+                return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
             }
+        } else {
+            LOGGER.error("Exception during HTTP request: {}", ex.getMessage());
         }
-        return returnList;
+        return HttpResponseMappingStatus.UNKNOWN_EXCEPTION;
     }
 
     /**
-     * @param transientItems Gets the transientItem with the same classId from the list as the item provided
-     * @param item           The item to be searched
-     * @return The item with the same class id in the list, otherwise null.
+     * Fetches additional inventory pages if the inventory exceeds the item limit for a single response.
+     *
+     * @param itemList        The initial list of items from the first page.
+     * @param id64            The SteamID64 of the account.
+     * @param previousResponse The response containing the lastAssetId for pagination.
+     * @param restTemplate    The RestTemplate for HTTP calls.
+     * @return The complete list of items from all pages.
      */
-    private ItemCollection getByObject(List<ItemCollection> transientItems, ItemCollection item) {
-        for (ItemCollection itemCollection : transientItems) {
-            if (itemCollection.deepEquals(item)) {
-                return itemCollection;
+    private List<ItemCollection> fetchAdditionalPages(List<ItemCollection> itemList, String id64, HttpInventoryResponse previousResponse, RestTemplate restTemplate) {
+        HttpInventoryResponse nextPageResponse;
+        String lastAssetId = previousResponse.getLastAssetId();
+
+        try {
+            nextPageResponse = restTemplate.getForObject(urlProvider.getInventoryRequestUriWithStart(id64, lastAssetId), HttpInventoryResponse.class);
+        } catch (Exception ex) {
+            handleException(ex);
+            return itemList;
+        }
+
+        if (nextPageResponse != null) {
+            itemList = combineLists(itemList, nextPageResponse);
+
+            // If there are even more items, fetch additional pages
+            if (nextPageResponse.hasMoreItems()) {
+                return fetchAdditionalPages(itemList, id64, nextPageResponse, restTemplate);
             }
         }
-        return null;
+
+        return itemList;
+    }
+
+    /**
+     * Combines items from multiple inventory pages into a single list.
+     *
+     * @param existingItems The list of items from previous pages.
+     * @param newResponse   The response containing items from the next page.
+     * @return A combined list of items.
+     */
+    private List<ItemCollection> combineLists(List<ItemCollection> existingItems, HttpInventoryResponse newResponse) {
+        List<ItemCollection> combinedList = new ArrayList<>(existingItems);
+
+        for (ItemCollection newItem : newResponse.getItemCollections()) {
+            ItemCollection existingItem = findMatchingItem(existingItems, newItem);
+            if (existingItem != null) {
+                existingItem.setAmount(existingItem.getAmount() + newItem.getAmount());
+            } else {
+                combinedList.add(newItem);
+            }
+        }
+
+        return combinedList;
+    }
+
+    /**
+     * Finds a matching item in the existing list based on deep equality.
+     *
+     * @param items The list of existing items.
+     * @param targetItem The item to find a match for.
+     * @return The matching item if found, otherwise null.
+     */
+    private ItemCollection findMatchingItem(List<ItemCollection> items, ItemCollection targetItem) {
+        return items.stream().filter(item -> item.deepEquals(targetItem)).findFirst().orElse(null);
     }
 }

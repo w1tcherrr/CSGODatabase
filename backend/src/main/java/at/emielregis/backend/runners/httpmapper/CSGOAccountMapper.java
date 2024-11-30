@@ -15,9 +15,9 @@ import java.lang.invoke.MethodHandles;
 import java.util.*;
 
 /**
- * This class is used to map CSGOAccounts by first searching for valid accounts from
- * the Steam Groups specified in the groups.txt file. It then maps the accounts and their
- * respective CS:GO inventories and stores them in a database.
+ * Handles the mapping of CSGO accounts and their inventories.
+ * The accounts are fetched from Steam groups, validated, and stored in the database.
+ * The mapping process includes handling proxy requests, inventory retrieval, and cleanup of orphaned items and inventories.
  */
 @Component
 public class CSGOAccountMapper {
@@ -30,51 +30,32 @@ public class CSGOAccountMapper {
     private final SteamGroupMapper steamGroupMapper;
     private final ItemService itemService;
     private final ProxyService proxyService;
-
-    private final List<CSGOAccount> accountsToPersist = Collections.synchronizedList(new ArrayList<>());
     private final BusyWaitingService busyWaitingService;
 
-    /*
-    The max amount of unique CS:GO inventories to be mapped (not the number of accounts since accounts without csgo,
-    or private accounts / private inventories are not counted. It is a precise value and is never exceeded.
-    The program stops once when it reaches the exact amount. Note that the groups specified in the groups.txt file
-    must contain around at least 1.5 times as many accounts as this value!
+    // Queue for accounts to be persisted
+    private final List<CSGOAccount> accountsToPersist = Collections.synchronizedList(new ArrayList<>());
 
-    MIN_ITEMS_FOR_ACCOUNT specifies how many items an inventory must have to be stored. This is to filter out most
-    very obvious smurf accounts, which only have extremely few items.
-     */
     @Value("${user-properties.max-csgo-accounts}")
-    private long MAX_CSGO_ACCOUNTS;
+    private long MAX_CSGO_ACCOUNTS; // Max allowed mapped inventories
 
     @Value("${user-properties.max-accounts-for-session}")
-    private long MAX_ACCOUNTS_FOR_SESSION;
+    private long MAX_ACCOUNTS_FOR_SESSION; // Max accounts allowed per session
 
     @Value("${user-properties.min-items-per-account}")
-    private long MIN_ITEMS_FOR_ACCOUNT;
+    private long MIN_ITEMS_FOR_ACCOUNT; // Minimum items required for inventory to be stored
 
     @Value("${user-properties.max-ids-per-batch}")
-    private int MAX_IDS_PER_BATCH;
+    private int MAX_IDS_PER_BATCH; // Max IDs to process in a batch
 
     @Value("${user-properties.amount-of-threads}")
-    private int AMOUNT_OF_THREADS;
+    private int AMOUNT_OF_THREADS; // Number of threads to use
 
     @Value("${user-properties.amount-of-proxies}")
-    private int AMOUNT_OF_PROXIES;
+    private int AMOUNT_OF_PROXIES; // Number of proxies to use
 
-    /*
-    amount of accounts already mapped
-     */
-    private long alreadyMappedAccounts;
-
-    /*
-    amount of accounts already mapped that also have an inventory
-     */
-    private long alreadyMappedAccountsWithInventories;
-
-    /*
-    if true all threads will stop mapping inventories immediately
-     */
-    private volatile boolean stop;
+    private long alreadyMappedAccounts = 0; // Tracks mapped accounts
+    private long alreadyMappedAccountsWithInventories = 0; // Tracks mapped accounts with inventories
+    private volatile boolean stop = false; // Flag to stop all threads
 
     public CSGOAccountMapper(
         CSGOAccountService csgoAccountService,
@@ -83,7 +64,8 @@ public class CSGOAccountMapper {
         SteamAccountService steamAccountService,
         SteamGroupMapper steamGroupMapper,
         ItemService itemService,
-        ProxyService proxyService, BusyWaitingService busyWaitingService) {
+        ProxyService proxyService,
+        BusyWaitingService busyWaitingService) {
         this.csgoAccountService = csgoAccountService;
         this.csgoInventoryService = csgoInventoryService;
         this.csgoInventoryMapper = csgoInventoryMapper;
@@ -95,30 +77,26 @@ public class CSGOAccountMapper {
     }
 
     /**
-     * Starts the mapping process. Creates a thread for each proxy and maps for players.
+     * Starts the mapping process for CSGO accounts and their inventories.
+     * Handles threads for account processing and proxy management.
      */
     public void start() {
         alreadyMappedAccountsWithInventories = csgoAccountService.countWithInventory();
+        LOGGER.info("Starting with {} mapped inventories.", alreadyMappedAccountsWithInventories);
 
-        LOGGER.info("Starting with: {} inventories", alreadyMappedAccountsWithInventories);
-
-        if (MAX_ACCOUNTS_FOR_SESSION <= 0) {
+        if (MAX_ACCOUNTS_FOR_SESSION <= 0 || alreadyMappedAccounts >= MAX_CSGO_ACCOUNTS) {
             return;
         }
 
-        if (alreadyMappedAccounts >= MAX_CSGO_ACCOUNTS) {
-            return;
-        }
-
+        // Thread for processing persisted accounts
         proxyService.addEmptyThread(() -> {
             while (!stop || !accountsToPersist.isEmpty()) {
-
                 if (accountsToPersist.isEmpty()) {
                     busyWaitingService.wait(5);
                     continue;
                 }
 
-                LOGGER.info("Current accounts in queue: {}", accountsToPersist.size());
+                LOGGER.info("Processing accounts in queue: {}", accountsToPersist.size());
                 CSGOAccount acc = accountsToPersist.get(0);
 
                 if (alreadyMapped(acc.getId64())) {
@@ -131,13 +109,15 @@ public class CSGOAccountMapper {
                         --alreadyMappedAccountsWithInventories;
                         return;
                     }
+
+                    // Process valid inventories
                     if (acc.getCsgoInventory().getTotalItemAmount() >= MIN_ITEMS_FOR_ACCOUNT) {
                         CSGOInventory inv = acc.getCsgoInventory();
                         inv.setItemCollections(itemService.convert(inv.getItemCollections()));
                         itemService.saveAll(inv.getItemCollections());
                         csgoInventoryService.save(acc.getCsgoInventory());
                     } else {
-                        LOGGER.info("Inventory does not have enough items and will not be stored.");
+                        LOGGER.info("Inventory does not meet the minimum item requirement.");
                         acc.setCsgoInventory(null);
                         --alreadyMappedAccountsWithInventories;
                     }
@@ -149,20 +129,18 @@ public class CSGOAccountMapper {
             }
         });
 
+        // Threads for proxy-based account mapping
         proxyService.addRestTemplateConsumerThreads(AMOUNT_OF_THREADS, AMOUNT_OF_PROXIES,
             templates -> {
                 while (!stop) {
-                    // start mapping csgo inventories
                     mapNextPlayers(templates);
                 }
-
-                // notify the user after termination of the proxy
-                LOGGER.info("FINISHED EXECUTION OF THREAD");
+                LOGGER.info("Thread execution complete.");
             });
 
         proxyService.await();
 
-        // delete all orphaned items once after the mapping has stopped.
+        // Cleanup orphaned items and inventories after mapping
         if (MAX_ACCOUNTS_FOR_SESSION >= MAX_CSGO_ACCOUNTS) {
             deleteOrphanedItems();
             deleteOrphanedInventories();
@@ -170,34 +148,25 @@ public class CSGOAccountMapper {
     }
 
     /**
-     * Maps the next valid players from the current thread.
+     * Maps the next batch of players' accounts using proxies.
      *
-     * @param templates The RestTemplates from which to execute the calls.
+     * @param templates The RestTemplate instances for sending HTTP requests.
      */
     public void mapNextPlayers(RestTemplate[] templates) {
-        LOGGER.info("Mapping next players");
+        LOGGER.info("Mapping next batch of players.");
         int proxyIndex = 0;
 
         steamGroupMapper.findAccounts(templates);
-
-        // getting next steam account ids to map
         List<String> nextAccounts = getIDs();
 
-        LOGGER.info("Already mapped {} players", alreadyMappedAccountsWithInventories);
-        LOGGER.info("Mapping account with ids: {} next", nextAccounts);
-
-        // this means that no accounts should be mapped anymore from the thread - this happens when the max is reached
         if (nextAccounts.isEmpty()) {
-            LOGGER.info("Finished mapping {} accounts.", MAX_CSGO_ACCOUNTS);
+            LOGGER.info("Mapping complete. Maximum accounts reached.");
             stop = true;
             return;
         }
 
-        // map each user individually
         for (String id64 : nextAccounts) {
-            if (stop) {
-                break;
-            }
+            if (stop) break;
 
             mapUser(id64, templates[proxyIndex]);
             proxyIndex = (proxyIndex + 1) % templates.length;
@@ -205,75 +174,54 @@ public class CSGOAccountMapper {
     }
 
     /**
-     * Gets the next SteamAccount IDs to be mapped by the current thread.
+     * Retrieves the next set of SteamAccount IDs to map.
      *
-     * @return The list of ids.
+     * @return A list of account IDs.
      */
     private List<String> getIDs() {
-        long max = MAX_CSGO_ACCOUNTS - alreadyMappedAccountsWithInventories;
-        long amount = Math.max(max / proxyService.maxThreads(), 1);
-        amount = Math.min(amount, MAX_IDS_PER_BATCH);
-        if (alreadyMappedAccountsWithInventories + amount > MAX_CSGO_ACCOUNTS) {
-            amount = MAX_CSGO_ACCOUNTS - alreadyMappedAccountsWithInventories;
-        }
-        if (amount <= 0) {
+        long remaining = MAX_CSGO_ACCOUNTS - alreadyMappedAccountsWithInventories;
+        long batchAmount = Math.min(Math.max(remaining / proxyService.maxThreads(), 1), MAX_IDS_PER_BATCH);
+
+        if (batchAmount <= 0) {
             return List.of();
         }
-        return steamAccountService.findNextIds(amount);
+
+        return steamAccountService.findNextIds(batchAmount);
     }
 
     /**
-     * Maps a single SteamAccount to create a CSGOAccount for that user.
+     * Maps a specific user account to create a CSGOAccount and associated inventory.
      *
-     * @param id64     The id of the user.
-     * @param template The RestTemplate from which to send http calls.
+     * @param id64     The SteamID64 of the user.
+     * @param template The RestTemplate for HTTP calls.
      */
     @Transactional
     public void mapUser(String id64, RestTemplate template) {
-
-        // if the amount of mapped inventories is greater or equal to the max amount the mapping is stopped in all threads
-        if (alreadyMappedAccountsWithInventories >= MAX_CSGO_ACCOUNTS) {
+        if (alreadyMappedAccountsWithInventories >= MAX_CSGO_ACCOUNTS || stop) {
             stop = true;
             return;
         }
 
         if (alreadyMappedAccounts >= MAX_ACCOUNTS_FOR_SESSION) {
-            LOGGER.info("MAX ACCOUNTS FOR SESSION REACHED - TERMINATING");
+            LOGGER.info("Session limit reached.");
             stop = true;
             return;
         }
 
-        if (stop) {
-            return;
-        }
-
-        /*
-         if an account is already mapped it is not mapped again
-         this can only happen when some threads fetch new steam accounts and the init method is called again in the
-         steam-account-service due to too little ids being left
-         */
         if (alreadyMapped(id64)) {
-            LOGGER.info("Request to map user with id: {} rejected, user already mapped", id64);
+            LOGGER.info("Account already mapped: {}", id64);
             return;
         }
 
-        LOGGER.info("Request to map user with id: {} accepted", id64);
+        LOGGER.info("Mapping account: {}", id64);
 
-        CSGOAccount.CSGOAccountBuilder accountBuilder =
-            CSGOAccount.builder()
-                .id64(id64);
+        CSGOAccount.CSGOAccountBuilder accountBuilder = CSGOAccount.builder().id64(id64);
 
-        // Get the inventory for the user. If any of the needed calls fail the fetcher returns HttpResponseMappingStatus.TOO_MANY_REQUESTS. In this case we don't store the account.
         if (csgoInventoryMapper.getInventory(accountBuilder, id64, template) != HttpResponseMappingStatus.SUCCESS) {
             return;
         }
 
-        // We increase the amount of alreadyMappedAccountsWithInventories if it has an inventory. If this amount is greater than the allowed amount we don't store it and return instead.
-        // The program will automatically terminate afterwards since the next id selection will be empty by default. Otherwise we save the inventory and the account.
-        // check this right before saving - we don't want duplicate accounts to be saved.
-        // they should not be saved either way, but it is better to check again
         if (alreadyMapped(id64)) {
-            LOGGER.info("Request to map user with id: {} rejected, user already mapped", id64);
             return;
         }
 
@@ -281,70 +229,52 @@ public class CSGOAccountMapper {
     }
 
     /**
-     * Returns whether the SteamAccount with the id64 has already been mapped into a CsgoAccount.
+     * Checks if an account has already been mapped.
      *
-     * @param id64 The id64 of the steam account.
-     * @return True if it was already mapped, false otherwise.
+     * @param id64 The SteamID64 of the account.
+     * @return True if mapped, otherwise false.
      */
     private boolean alreadyMapped(String id64) {
         return csgoAccountService.containsById64(id64);
     }
 
     /**
-     * Deletes all orphaned items - that is items that stored that do not belong to an inventory.
-     * This happens when the application is forcefully stopped while storing the items of an inventory
-     * but not having stored the inventory itself yet.
-     * <p>
-     * This method takes long and should only be run once after the whole mapping is done.
+     * Deletes orphaned items from the database.
      */
     @Transactional
     public void deleteOrphanedItems() {
-        // use sets not lists for performance as ids may not be duplicate anyway
-        LOGGER.info("Delete orphaned items");
+        LOGGER.info("Deleting orphaned items.");
 
         Set<Long> orphanedIDs = itemService.getOrphanedIDs();
 
         if (orphanedIDs.isEmpty()) {
-            LOGGER.info("No orphaned items!");
+            LOGGER.info("No orphaned items found.");
             return;
         }
 
-        LOGGER.info("Total items before delete: " + itemService.count());
-        LOGGER.info("Total orphaned items: " + orphanedIDs.size());
-        //itemService.deleteAllById(orphanedIDs);
-        LOGGER.info("Total items after delete: " + itemService.count());
+        LOGGER.info("Found {} orphaned items.", orphanedIDs.size());
+        // Uncomment if needed: itemService.deleteAllById(orphanedIDs);
     }
 
     /**
-     * Deletes all orphaned inventories (and items stored in them)
-     * This happens when the application is forcefully stopped while storing the inventory
-     * but not having stored the CSGOAccount with the inventory yet.
-     * <p>
-     * This method takes long and should only be run once after the whole mapping is done.
+     * Deletes orphaned inventories from the database.
      */
     @Transactional
     public void deleteOrphanedInventories() {
-        // use sets not lists for performance as ids may not be duplicate anyway
-        LOGGER.info("Delete orphaned inventories");
-
-        if (csgoInventoryService.count() == csgoInventoryService.getNormalInventoryCount()) {
-            LOGGER.info("No orphaned inventories!");
-            return;
-        }
+        LOGGER.info("Deleting orphaned inventories.");
 
         Set<Long> allInventoryIDs = csgoInventoryService.getAllInventoryIDs();
         Set<Long> normalInventoryIDs = csgoInventoryService.getNormalInventoryIDs();
-        Set<Long> orphanedIDs = new HashSet<>();
+        Set<Long> orphanedIDs = new HashSet<>(allInventoryIDs);
 
-        for (Long id : allInventoryIDs) {
-            if (!normalInventoryIDs.contains(id)) {
-                orphanedIDs.add(id);
-            }
+        orphanedIDs.removeAll(normalInventoryIDs);
+
+        if (orphanedIDs.isEmpty()) {
+            LOGGER.info("No orphaned inventories found.");
+            return;
         }
 
-        LOGGER.info("Total inventories before delete: " + csgoInventoryService.count());
-        LOGGER.info("Total orphaned inventories: " + orphanedIDs.size());
+        LOGGER.info("Found {} orphaned inventories.", orphanedIDs.size());
         csgoInventoryService.deleteAllById(orphanedIDs);
-        LOGGER.info("Total inventories after delete: " + csgoInventoryService.count());
     }
 }

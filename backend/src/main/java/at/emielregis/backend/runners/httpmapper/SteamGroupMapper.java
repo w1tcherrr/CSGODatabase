@@ -19,8 +19,14 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Maps Steam groups to retrieve and store Steam accounts.
+ * This class uses the Steam API to fetch accounts from specified groups
+ * and ensures that a buffer of unmapped accounts is always available for processing.
+ */
 @Component
 public class SteamGroupMapper {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private final SteamAccountService steamAccountService;
@@ -35,10 +41,20 @@ public class SteamGroupMapper {
     private volatile boolean initialized = false;
     private long currentAccounts;
     private int amountOfGroups = -1;
-    List<SteamGroup> groups = null;
+    private List<SteamGroup> groups = null;
 
+    /**
+     * Constructs the SteamGroupMapper with required services.
+     *
+     * @param steamAccountService   Service for managing Steam accounts.
+     * @param csgoAccountService    Service for managing CS:GO accounts.
+     * @param urlProvider           Provides URIs for Steam API requests.
+     * @param busyWaitingService    Handles wait logic when encountering rate limits.
+     * @param persistentDataService Service for managing group and page persistence.
+     */
     public SteamGroupMapper(SteamAccountService steamAccountService,
-                            CSGOAccountService csgoAccountService, UrlProvider urlProvider,
+                            CSGOAccountService csgoAccountService,
+                            UrlProvider urlProvider,
                             BusyWaitingService busyWaitingService,
                             PersistentDataService persistentDataService) {
         this.steamAccountService = steamAccountService;
@@ -49,10 +65,11 @@ public class SteamGroupMapper {
     }
 
     /**
-     * Finds new accounts whenever the CSGOAccountMapper does not have enough accounts left to process.
+     * Finds and maps new Steam accounts from groups when the buffer size falls below the threshold.
+     *
+     * @param restTemplates Array of RestTemplate instances for making HTTP requests.
      */
     public void findAccounts(RestTemplate[] restTemplates) {
-        // only initialize once
         synchronized (this) {
             if (!initialized) {
                 initialized = true;
@@ -62,7 +79,7 @@ public class SteamGroupMapper {
             }
         }
 
-        // wait with other threads while one initializes the mapper
+        // Wait for initialization in other threads
         while (!initialized) {
             Thread.onSpinWait();
         }
@@ -71,92 +88,103 @@ public class SteamGroupMapper {
 
         int proxyIndex = 0;
 
-        // whenever there are less than ACCOUNT_BUFFER_SIZE accounts left new accounts are searched for.
+        // Fetch accounts until the buffer is filled
         while (currentAccounts < (csgoAccountService.count() + ACCOUNT_BUFFER_SIZE)) {
             String currentGroup;
             long currentPage;
 
-            // get the group and page to process for this call
+            // Select a group and page for processing
             synchronized (this) {
                 currentGroup = groups.get((int) (amountOfGroups * Math.random())).getName();
                 currentPage = persistentDataService.getNextPage(currentGroup);
             }
 
-            LOGGER.info("Mapping for group {}, page {}, current accounts: {}", currentGroup, currentPage, currentAccounts);
+            LOGGER.info("Mapping group: {}, page: {}, current accounts: {}", currentGroup, currentPage, currentAccounts);
 
-            // get the uri
             String currentUri = urlProvider.getSteamGroupRequest(currentGroup, currentPage);
 
-            // get the response as a string
             String response;
             try {
                 response = restTemplates[proxyIndex].getForObject(currentUri, String.class);
                 proxyIndex = (proxyIndex + 1) % restTemplates.length;
             } catch (Exception ex) {
-                synchronized (this) { // if the call fails we free the page again as it wasn't properly mapped
-                    persistentDataService.freePage(currentGroup, currentPage);
-                }
-                if (ex instanceof RestClientResponseException e) {
-                    if (e.getRawStatusCode() == 429) {
-                        LOGGER.error("429 - Too many requests");
-                        busyWaitingService.wait(240);
-                    }
-                } else {
-                    LOGGER.error(ex.getMessage());
-                    busyWaitingService.wait(240);
-                }
+                handleFailedRequest(ex, currentGroup, currentPage);
                 continue;
             }
 
-            if (response == null || response.contains("An error was encountered while processing your request")) { // shouldn't happen in practice, unless the steam servers are broken
-                LOGGER.error("Error processing request for group: {}, page: {}. This means that the Steam Servers can not retrieve the members! " +
-                    "Please check whether Postman returns a correct request.", currentGroup, currentPage);
+            if (response == null || response.contains("An error was encountered while processing your request")) {
+                LOGGER.error("Error processing group: {}, page: {}. Check Steam servers.", currentGroup, currentPage);
                 persistentDataService.freePage(currentGroup, currentPage);
                 continue;
             }
 
-            // as the request is a string all the ids are simply read using a regex matcher
-            Matcher matcher = Pattern.compile("<steamID64>(?<id>\\d{17})</steamID64>").matcher(response);
-            List<SteamAccount> accountList = new ArrayList<>();
-
-            synchronized (this) {
-                boolean hasAccounts = false;
-                while (matcher.find()) {
-                    String current = matcher.group("id");
-                    hasAccounts = true;
-                    if (!steamAccountService.containsById64(current)) {
-                        accountList.add(SteamAccount.builder()
-                            .id64(current)
-                            .build()
-                        );
-                    }
-                }
-
-                // if the response does not contain any accounts the page number was too high for the groups user count
-                if (!hasAccounts) {
-                    persistentDataService.lockGroup(currentGroup);
-                    groups = persistentDataService.getUnlockedGroups();
-                    amountOfGroups = groups.size();
-                }
-
-                steamAccountService.saveAll(accountList);
-            }
-
-            // update the account number
-            synchronized (this) {
-                currentAccounts = steamAccountService.count();
-            }
+            processResponse(response, currentGroup);
         }
     }
 
     /**
-     * Returns the names of the steam groups.
+     * Handles failed HTTP requests and frees the page for retrying.
      *
-     * @return List of steam group names.
+     * @param ex          The exception encountered during the request.
+     * @param currentGroup The group being processed.
+     * @param currentPage The page being processed.
+     */
+    private void handleFailedRequest(Exception ex, String currentGroup, long currentPage) {
+        synchronized (this) {
+            persistentDataService.freePage(currentGroup, currentPage);
+        }
+        if (ex instanceof RestClientResponseException e && e.getRawStatusCode() == 429) {
+            LOGGER.error("429 - Too many requests. Retrying after wait.");
+            busyWaitingService.wait(240);
+        } else {
+            LOGGER.error("Request failed: {}", ex.getMessage());
+            busyWaitingService.wait(240);
+        }
+    }
+
+    /**
+     * Processes the response from the Steam API, extracting and saving Steam accounts.
+     *
+     * @param response    The raw response from the Steam API.
+     * @param currentGroup The group being processed.
+     */
+    private void processResponse(String response, String currentGroup) {
+        Matcher matcher = Pattern.compile("<steamID64>(?<id>\\d{17})</steamID64>").matcher(response);
+        List<SteamAccount> accountList = new ArrayList<>();
+
+        synchronized (this) {
+            boolean hasAccounts = false;
+            while (matcher.find()) {
+                String id64 = matcher.group("id");
+                hasAccounts = true;
+                if (!steamAccountService.containsById64(id64)) {
+                    accountList.add(SteamAccount.builder().id64(id64).build());
+                }
+            }
+
+            if (!hasAccounts) {
+                persistentDataService.lockGroup(currentGroup);
+                groups = persistentDataService.getUnlockedGroups();
+                amountOfGroups = groups.size();
+            }
+
+            steamAccountService.saveAll(accountList);
+            currentAccounts = steamAccountService.count();
+        }
+    }
+
+    /**
+     * Reads the list of group names from the `groups.txt` file in the classpath.
+     *
+     * @return A list of group names.
      */
     private List<String> getGroups() {
-        InputStreamReader r = new InputStreamReader(Objects.requireNonNull(CSGOAccountMapper.class.getClassLoader().getResourceAsStream("groups.txt")));
-        BufferedReader reader = new BufferedReader(r);
-        return reader.lines().filter(line -> !line.isEmpty()).filter(line -> !line.startsWith("#")).map(String::trim).toList();
+        InputStreamReader reader = new InputStreamReader(Objects.requireNonNull(
+            CSGOAccountMapper.class.getClassLoader().getResourceAsStream("groups.txt")));
+        BufferedReader bufferedReader = new BufferedReader(reader);
+        return bufferedReader.lines()
+            .filter(line -> !line.isEmpty() && !line.startsWith("#"))
+            .map(String::trim)
+            .toList();
     }
 }

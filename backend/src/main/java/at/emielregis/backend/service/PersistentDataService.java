@@ -15,27 +15,50 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+/**
+ * Service class for managing persistent data and Steam group mappings.
+ * This class provides methods for handling the persistence and mapping of {@link SteamGroup} entities
+ * as well as managing the {@link PersistentDataStore}.
+ */
 @Component
 public class PersistentDataService {
+
     private final PersistentDataRepository persistentDataRepository;
     private final SteamGroupRepository steamGroupRepository;
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+    /**
+     * Constructor for {@link PersistentDataService}.
+     *
+     * @param persistentDataRepository Repository for accessing {@link PersistentDataStore}.
+     * @param steamGroupRepository     Repository for managing {@link SteamGroup} entities.
+     */
     public PersistentDataService(PersistentDataRepository persistentDataRepository,
                                  SteamGroupRepository steamGroupRepository) {
         this.persistentDataRepository = persistentDataRepository;
         this.steamGroupRepository = steamGroupRepository;
     }
 
+    /**
+     * Saves a {@link PersistentDataStore} instance to the database.
+     *
+     * @param store The {@link PersistentDataStore} to save.
+     */
     public void save(PersistentDataStore store) {
         LOGGER.info("PersistentDataService#save()");
         Long id = getInstanceId();
-        if (!Objects.equals(store.getId(), id)) { // if the data store instance is not the same
+        if (!Objects.equals(store.getId(), id)) {
             throw new IllegalArgumentException("Must not create more than one PersistentDataStore!");
         }
         persistentDataRepository.save(store);
     }
 
+    /**
+     * Retrieves the singleton instance of {@link PersistentDataStore}.
+     * If no instance exists, a new one is created.
+     *
+     * @return The singleton instance of {@link PersistentDataStore}.
+     */
     private PersistentDataStore getInstance() {
         LOGGER.info("PersistentDataService#getInstance()");
         if (noStoreExists()) {
@@ -44,6 +67,12 @@ public class PersistentDataService {
         return persistentDataRepository.findAll().get(0);
     }
 
+    /**
+     * Retrieves the ID of the current {@link PersistentDataStore} instance.
+     * Creates a new instance if none exists.
+     *
+     * @return The ID of the {@link PersistentDataStore}.
+     */
     private Long getInstanceId() {
         LOGGER.info("PersistentDataService#getInstanceId()");
         if (noStoreExists()) {
@@ -52,80 +81,83 @@ public class PersistentDataService {
         return persistentDataRepository.getId();
     }
 
+    /**
+     * Creates a new {@link PersistentDataStore} instance and saves it to the database.
+     */
     private void createNewStore() {
         LOGGER.info("PersistentDataService#createNewStore()");
         persistentDataRepository.save(
-            PersistentDataStore
-                .builder()
+            PersistentDataStore.builder()
                 .steamGroups(new ArrayList<>())
                 .build()
         );
     }
 
+    /**
+     * Checks if no {@link PersistentDataStore} exists in the database.
+     *
+     * @return True if no store exists, false otherwise.
+     */
     private boolean noStoreExists() {
         LOGGER.info("PersistentDataService#noStoreExists()");
         return persistentDataRepository.count() <= 0;
     }
 
     /**
-     * Initializes the SteamGroup entities from the file.
+     * Initializes the Steam groups by creating entities for the provided group names.
+     * Removes groups that are no longer specified in the input list.
      *
-     * @param steamGroups The list of steam groups by their group name.
-     * @return The list of the created steam group entities.
+     * @param steamGroups The list of Steam group names to initialize.
+     * @return The list of initialized Steam groups that are not locked.
      */
     @Transactional
     public List<SteamGroup> initializeGroups(List<String> steamGroups) {
-        LOGGER.info("PersistentDataService#initializeGroups(" + steamGroups + ")");
+        LOGGER.info("PersistentDataService#initializeGroups({})", steamGroups);
         PersistentDataStore store = getInstance();
         List<SteamGroup> groups = store.getSteamGroups();
         List<SteamGroup> toRemove = new ArrayList<>();
 
-        // if a steam group is stored that is no longer specified in the file it is removed
-        groups.forEach(k -> {
-            if (!steamGroups.contains(k.getName())) {
-                toRemove.add(k);
+        groups.forEach(group -> {
+            if (!steamGroups.contains(group.getName())) {
+                toRemove.add(group);
             }
         });
         groups.removeAll(toRemove);
 
-        // add new entries for each group not stored in the datastore already
-        steamGroups.forEach(group -> {
-                if (!groups.contains(SteamGroup.builder().name(group).build())) {
-                    SteamGroup group1 = SteamGroup.builder().name(group).mappedPages(new ArrayList<>()).build();
-                    steamGroupRepository.save(group1);
-                    groups.add(group1);
-                }
+        steamGroups.forEach(groupName -> {
+            if (!groups.contains(SteamGroup.builder().name(groupName).build())) {
+                SteamGroup group = SteamGroup.builder().name(groupName).mappedPages(new ArrayList<>()).build();
+                steamGroupRepository.save(group);
+                groups.add(group);
             }
-        );
+        });
 
         store.setSteamGroups(groups);
         save(store);
 
-        // return only groups that are not locked - locked groups don't contain any more users and are not needed for further execution.
         return groups.stream().filter(group -> !group.isLocked()).collect(Collectors.toList());
     }
 
     /**
-     * Gets the next unmapped page for the specified steam group.
+     * Retrieves the next unmapped page number for a given Steam group.
      *
      * @param currentGroup The name of the group.
-     * @return The unmapped page number.
+     * @return The next unmapped page number.
      */
     @Transactional
     public synchronized long getNextPage(String currentGroup) {
-        LOGGER.info("PersistentDataService#getNextPage(" + currentGroup + ")");
+        LOGGER.info("PersistentDataService#getNextPage({})", currentGroup);
 
         PersistentDataStore store = getInstance();
         List<SteamGroup> groups = store.getSteamGroups();
         SteamGroup group = getGroupByName(groups, currentGroup);
-        List<Integer> groupList = group.getMappedPages();
+        List<Integer> mappedPages = group.getMappedPages();
 
-        // get the next unmapped page. Due to multi-threading the list is not always ascending without gaps.
         int index = 1;
         while (true) {
-            if (!groupList.contains(index)) {
-                groupList.add(index);
-                group.setMappedPages(groupList);
+            if (!mappedPages.contains(index)) {
+                mappedPages.add(index);
+                group.setMappedPages(mappedPages);
                 store.setSteamGroups(groups);
                 save(store);
                 return index;
@@ -135,43 +167,48 @@ public class PersistentDataService {
     }
 
     /**
-     * Frees the specified page - which means its mapping status is set to not mapped.
-     * This is called whenever an exception in the REST call happens after the page was distributed to the proxy.
+     * Frees a specified page for a given Steam group, marking it as unmapped.
      *
      * @param currentGroup The name of the group.
-     * @param currentPage  The page to be removed.
+     * @param currentPage  The page to be freed.
      */
     @Transactional
     public synchronized void freePage(String currentGroup, long currentPage) {
-        LOGGER.info("PersistentDataService#getNextPage(" + currentGroup + ", " + currentPage + ")");
+        LOGGER.info("PersistentDataService#freePage({}, {})", currentGroup, currentPage);
         PersistentDataStore store = getInstance();
         List<SteamGroup> groups = store.getSteamGroups();
         SteamGroup group = getGroupByName(groups, currentGroup);
-        List<Integer> groupList = group.getMappedPages();
-        groupList.removeAll(List.of((int) currentPage)); // otherwise the index method is used
-        group.setMappedPages(groupList);
+        List<Integer> mappedPages = group.getMappedPages();
+        mappedPages.removeAll(List.of((int) currentPage));
+        group.setMappedPages(mappedPages);
         store.setSteamGroups(groups);
         save(store);
     }
 
+    /**
+     * Retrieves a Steam group by its name from a list of groups.
+     *
+     * @param groups       The list of groups.
+     * @param currentGroup The name of the group to retrieve.
+     * @return The {@link SteamGroup} with the specified name.
+     * @throws IllegalArgumentException If the group does not exist.
+     */
     public SteamGroup getGroupByName(List<SteamGroup> groups, String currentGroup) {
-        LOGGER.info("PersistentDataService#getByName(" + currentGroup + ")");
-        for (SteamGroup group : groups) {
-            if (group.getName().equals(currentGroup)) {
-                return group;
-            }
-        }
-        throw new IllegalArgumentException("Group " + currentGroup + " does not exist");
+        LOGGER.info("PersistentDataService#getGroupByName({})", currentGroup);
+        return groups.stream()
+            .filter(group -> group.getName().equals(currentGroup))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Group " + currentGroup + " does not exist"));
     }
 
     /**
-     * Locks a group, which means that requests for the groups members are no longer sent.
+     * Locks a Steam group, marking it as unavailable for further mapping.
      *
      * @param currentGroup The name of the group to lock.
      */
     @Transactional
     public void lockGroup(String currentGroup) {
-        LOGGER.info("PersistentDataService#lockGroup(" + currentGroup + ")");
+        LOGGER.info("PersistentDataService#lockGroup({})", currentGroup);
         PersistentDataStore store = getInstance();
         List<SteamGroup> groups = store.getSteamGroups();
         SteamGroup group = getGroupByName(groups, currentGroup);
@@ -180,15 +217,16 @@ public class PersistentDataService {
     }
 
     /**
-     * Gets all unlocked groups. This should be called after locking a group to ensure the locked group is removed
-     * from the current group selection.
+     * Retrieves all unlocked Steam groups, which are eligible for further mapping.
      *
-     * @return The list of groups.
+     * @return A list of unlocked {@link SteamGroup} entities.
      */
     @Transactional
     public List<SteamGroup> getUnlockedGroups() {
         LOGGER.info("PersistentDataService#getUnlockedGroups()");
         PersistentDataStore store = getInstance();
-        return store.getSteamGroups().stream().filter(s -> !s.isLocked()).collect(Collectors.toList());
+        return store.getSteamGroups().stream()
+            .filter(group -> !group.isLocked())
+            .collect(Collectors.toList());
     }
 }

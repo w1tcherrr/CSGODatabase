@@ -9,6 +9,15 @@ import org.hibernate.Hibernate;
 import javax.persistence.*;
 import java.util.Objects;
 
+/**
+ * Represents a unique type of item in the system, defined by its specific attributes such as name, exterior, rarity,
+ * category, associated item set, special item type, and market hash name.
+ * <p>
+ * For example, all "Breakout Cases" will share the same {@link ItemType} since they do not differ in any attribute.
+ * However, items with differing attributes, such as exteriors (e.g., "Factory New", "Field-Tested"), rarity levels, or
+ * belonging to different {@link ItemSet}s, will have distinct {@link ItemType} entries to account for these variations.
+ */
+
 @Entity
 @Getter
 @Setter
