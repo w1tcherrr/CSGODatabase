@@ -104,6 +104,36 @@ public class ItemSetService {
     }
 
     /**
+     * Retrieves all graffiti collections.
+     *
+     * @return List of all graffiti collections.
+     */
+    public List<ItemSet> getAllGraffitiCollections() {
+        LOGGER.info("ItemSetService#getAllGraffitiCollections()");
+        return searchByEquality(readFile("graffiti_collections.txt"));
+    }
+
+    /**
+     * Retrieves all patch collections.
+     *
+     * @return List of all patch collections.
+     */
+    public List<ItemSet> getAllPatchCollections() {
+        LOGGER.info("ItemSetService#getAllPatchCollections()");
+        return searchByEquality(readFile("patch_collections.txt"));
+    }
+
+    /**
+     * Retrieves all souvenir collections.
+     *
+     * @return List of all souvenir collections.
+     */
+    public List<ItemSet> getAllSouvenirCollections() {
+        LOGGER.info("ItemSetService#getAllSouvenirCollections()");
+        return searchByEquality(readFile("souvenir_collections.txt"));
+    }
+
+    /**
      * Retrieves all exterior types for a specific item set.
      *
      * @param set The {@link ItemSet} to analyze.
